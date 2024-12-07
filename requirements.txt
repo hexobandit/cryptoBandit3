@@ -1,0 +1,7 @@
+requests
+pandas
+binance
+tenacity
+slack_sdk
+termcolor
+python-binance
