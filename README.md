@@ -7,7 +7,7 @@ A Python bot for automated cryptocurrency trading on Binance using the Relative 
 ### Key features include:
 
 - Tracks multiple coins like BTCUSDT, ETHUSDT, etc.
-- RSI-based buy/sell signals.
+- RSI-based buy signals (RSI < 30).
 - Custom thresholds for buy, sell, and stop-loss.
 - Real-time performance tracking.
 - Slack notifications for critical events (TODO)
@@ -21,8 +21,24 @@ A Python bot for automated cryptocurrency trading on Binance using the Relative 
 
 ### Usage:
 - Adjust tracked symbols and thresholds as needed.
-- Requires a Binance account and API keys stored securely in _secrets.py.
+- Requires a Binance account and API keys (``api_key = 'xxxxxxx'`` & ``secret_key= 'xxxxxxx'``) stored in ```_secrets/__init__py```.
 
+```
+    python3 -m venv venv
+    source ./venv/bin/activate
+    pip install -r requirements.txt
+    python3 cryptoBandit3.py
+```
+
+### Constants:
+```
+    usd_amount = 50  
+    buy_threshold = 0.01  # 1%
+    sell_threshold = 0.01 
+    stop_loss_threshold = 0.8  # 80% 
+    reset_initial_price = 0.01  
+    kline_interval = Client.KLINE_INTERVAL_1MINUTE
+```
 ## Example Run:
 <img width="641" alt="image" src="https://github.com/user-attachments/assets/93ddc8f6-015e-405d-adfc-d6910ac8e259">
 

@@ -1,0 +1,22 @@
+#
+_secrets/
+
+# Python virtual environments
+venv/
+.env/
+.venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+#
+output_*
+order_id*
+status.json
