@@ -18,7 +18,7 @@ sys.path.append('../')  # Adjust path to include the parent directory
 from _secrets import api_key, secret_key
 
 # List of coins to track
-symbols = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "XRPUSDC", "DOGEUSDC", "SOLUSDC", "PNUTUSDC", "PEPEUSDC", "SHIBUSDC"]
+symbols = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "XRPUSDC", "DOGEUSDC", "SOLUSDC", "PNUTUSDC", "PEPEUSDC", "SHIBUSDC", "XLMUSDC", "LINKUSDC", "SHIBUSDC"]
 
 shutdown = False
 
@@ -69,8 +69,8 @@ for symbol in symbols:
         overall_status[symbol] = 0
 
 # Constants
-usd_amount = 50  
-buy_threshold = 0.001           # 0.001 = 0.1% + RSI < 30
+usd_amount = 100  
+buy_threshold = 0.01           # 0.01 = 1% + RSI < 30
 sell_threshold = 0.01           # 0.01 = 1%
 stop_loss_threshold = 0.8       # 0.8 = 80%
 reset_initial_price = 0.005     # 0.005 = 0.5%
@@ -314,13 +314,13 @@ while not shutdown:
                     continue
 
                 if percent_change <= -buy_threshold and rsi < 30:
-                    print(f"{colored('BUY SIGNAL', 'green')} for {symbol} at {price} USDT (RSI: {rsi})")
+                    print(f"{colored(' - BUY SIGNAL', 'green')} for {symbol} at {price} USDT (RSI: {rsi})")
                     success = buy(symbol, usd_amount)
                     if success:
                         data["position_is_open"] = True
                         data["initial_price"] = None
                     else:
-                        print(f"{colored(f'Buy failed for {symbol}.', 'red')}")
+                        print(f"{colored(f' - Buy failed for {symbol}.', 'red')}")
 
             # Sell logic
             elif data["position_is_open"]:
@@ -333,7 +333,7 @@ while not shutdown:
                             buy_price, _ = map(float, data_content.split(","))
                             data["buy_price"] = buy_price
                     except (FileNotFoundError, ValueError) as e:
-                        print(f"{colored('Error:', 'red')} buy_price not found for {symbol}. Skipping.")
+                        print(f"{colored(' - Error:', 'red')} buy_price not found for {symbol}. Skipping.")
                         continue
 
 
@@ -348,10 +348,10 @@ while not shutdown:
 
 
                 if percent_change >= sell_threshold or percent_change <= -stop_loss_threshold:
-                    print(f"{colored('SELL SIGNAL', 'red')} for {symbol} at {price} USDT (RSI: {rsi})")
+                    print(f"{colored(' - SELL SIGNAL', 'red')} for {symbol} at {price} USDT (RSI: {rsi})")
                     sell_order = sell(symbol)
                     if sell_order is None:
-                        print(f"{colored('Sell failed for {symbol}.', 'red')}")
+                        print(f"{colored(' - Sell failed for {symbol}.', 'red')}")
                         continue  # Skip to the next symbol
 
                     # Update overall profit or loss
@@ -370,7 +370,7 @@ while not shutdown:
                 f.write(f"{datetime.datetime.now()}: {symbol} - {price} USDT\n")
 
         except Exception as e:
-            print(f"{colored(f'Error processing {symbol}: {e}', 'red')}")
+            print(f"{colored(f' - Error processing {symbol}: {e}', 'red')}")
 
     with open(status_file, "w") as f:
         json.dump(overall_status, f, indent=2)
@@ -381,7 +381,7 @@ while not shutdown:
         status_color = "green" if status > 0 else "red"
         print(f"{symbol}: {colored(f'{status:.2f} USDT', status_color)}")
 
-    for _ in range(60):
+    for _ in range(60 * 10):
         if shutdown:
             break
         time.sleep(1)
