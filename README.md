@@ -39,6 +39,18 @@ A Python bot for automated cryptocurrency trading on Binance using the Relative 
     reset_initial_price = 0.01  
     kline_interval = Client.KLINE_INTERVAL_1MINUTE
 ```
+
+### Loop Time
+Loop time is defined at the end of the script, in bellow example it runs every 10 minutes:
+
+```
+    for _ in range(60 * 10):
+        if shutdown:
+            break
+        time.sleep(1)
+```
+
+
 ## Example Run:
 <img width="641" alt="image" src="https://github.com/user-attachments/assets/93ddc8f6-015e-405d-adfc-d6910ac8e259">
 
