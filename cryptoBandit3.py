@@ -204,13 +204,13 @@ def sell(symbol):
 
         # Determine if it was profitable
         if profit_or_loss > 0:
-            result = f"Profit: {profit_or_loss:.2f} USDT"
+            result = f" - Profit: {profit_or_loss:.2f} USDT 💪😎"
             color = "green"
         else:
-            result = f"Loss: {profit_or_loss:.2f} USDT"
+            result = f" - Loss: {profit_or_loss:.2f} USDT"
             color = "red"
 
-        print(f"{colored('Sell successful!', 'cyan')} {symbol} at {sell_price:.2f} USDT")
+        print(f"{colored(' - Sell successful!', 'cyan')} {symbol} at {sell_price:.2f} USDT")
         print(colored(result, color))
 
         # Reset state in memory and clear the file
