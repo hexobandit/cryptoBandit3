@@ -18,7 +18,23 @@ sys.path.append('../')  # Adjust path to include the parent directory
 from _secrets import api_key, secret_key
 
 # List of coins to track
-symbols = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "XRPUSDC", "DOGEUSDC", "SOLUSDC", "PNUTUSDC", "PEPEUSDC", "SHIBUSDC", "XLMUSDC", "LINKUSDC", "SHIBUSDC"]
+symbols = ["BTCUSDC", 
+           "ETHUSDC", 
+           "BNBUSDC", 
+           "ADAUSDC", 
+           "XRPUSDC", 
+           "DOGEUSDC", 
+           "SOLUSDC", 
+           "PNUTUSDC", 
+           "PEPEUSDC", 
+           "SHIBUSDC", 
+           "XLMUSDC", 
+           "LINKUSDC", 
+           "SHIBUSDC",
+           "IOTAUSDC", 
+           "BANANAUSDC", 
+           "ORCAUSDC"
+           ]
 
 shutdown = False
 
