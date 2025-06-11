@@ -15,13 +15,16 @@ A Python bot for automated cryptocurrency trading on Binance using the Relative 
 
 ### Technologies:
 - Binance API for trading and market data.
-- Slack SDK for notifications.
+- Slack SDK for notifications. (TODO)
 - Pandas for RSI calculation and data handling.
 - Tenacity for retry mechanisms.
 
 ### Usage:
 - Adjust tracked symbols and thresholds as needed.
-- Requires a Binance account and API keys (``api_key = 'xxxxxxx'`` & ``secret_key= 'xxxxxxx'``) stored in ```_secrets/__init__py```.
+- Requires a Binance account and API keys stored in ```_secrets/__init__py```
+   - (``api_key = 'xxxxxxx'``
+   - ``secret_key= 'xxxxxxx'``)
+
 
 ```
     python3 -m venv venv
