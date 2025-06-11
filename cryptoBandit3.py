@@ -151,7 +151,7 @@ def buy(symbol, usd_amount):
         with open(coins[symbol]["filename_order_id"], "w") as f:
             f.write(f"{buy_price},{quantity}")
 
-        print(f"Bought {symbol}: Order ID {data['orderId']} | Quantity: {quantity} | Price: {buy_price}")
+        print(f" - Bought {symbol}: Order ID {data['orderId']} | Quantity: {quantity} | Price: {buy_price}")
         return True  # Indicate buy was successful
     else:
         print(f"Error buying {symbol}: {data}")
