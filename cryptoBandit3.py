@@ -31,9 +31,7 @@ symbols = ["BTCUSDC",
            "XLMUSDC", 
            "LINKUSDC", 
            "SHIBUSDC",
-           "IOTAUSDC", 
-           "BANANAUSDC", 
-           "ORCAUSDC"
+           "IOTAUSDC"
            ]
 
 shutdown = False
@@ -88,7 +86,7 @@ for symbol in symbols:
 usd_amount = 100  
 buy_threshold = 0.01           # 0.01 = 1% + RSI < 30
 sell_threshold = 0.01           # 0.01 = 1%
-stop_loss_threshold = 0.8       # 0.8 = 80%
+stop_loss_threshold = 0.8       # 0.80 = 80%
 reset_initial_price = 0.005     # 0.005 = 0.5%
 kline_interval = Client.KLINE_INTERVAL_1MINUTE
 
@@ -139,6 +137,29 @@ def calculate_rsi(symbol, interval, client):
     except Exception as e:
         print(f"Error calculating RSI for {symbol}: {e}")
         raise tenacity.TryAgain
+
+# EMA Cross Calculation Function
+def calculate_emas(symbol, interval, client):
+    try:
+        # Fetch historical klines
+        klines = client.get_historical_klines(symbol, interval, "90 minutes ago UTC")
+        df = pd.DataFrame(klines, columns=[
+            "timestamp", "open", "high", "low", "close", "volume",
+            "close_time", "quote_asset_volume", "number_of_trades",
+            "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"
+        ])
+        df["close"] = df["close"].astype(float)
+
+        # Calculate EMA 9 and EMA 26
+        df["ema9"] = df["close"].ewm(span=9, adjust=False).mean()
+        df["ema26"] = df["close"].ewm(span=26, adjust=False).mean()
+
+        # Return only the current values
+        return df["ema9"].iloc[-1], df["ema26"].iloc[-1]
+
+    except Exception as e:
+        print(f"Error calculating EMAs for {symbol}: {e}")
+        return None, None
 
 def buy(symbol, usd_amount):
     endpoint = 'https://api.binance.com/api/v3/order'
@@ -306,13 +327,16 @@ while not shutdown:
             response_data = response.json()
             price = float(response_data["price"])
 
-            # Calculate RSI
+            # Calculate RSI & EMA
             rsi = calculate_rsi(symbol, kline_interval, client)
+            ema9, ema26 = calculate_emas(symbol, kline_interval, client)
+            trend_direction = "above" if ema9 > ema26 else "below"
 
             # Progress Update
             print(f"\n[{symbol}]")
             print(f" - Current Price: {colored(price, 'cyan')} USDT")
             print(f" - RSI: {colored(rsi, 'yellow')}")
+            print(f" - EMA(9): {ema9:.4f}, EMA(26): {ema26:.4f}, Trend: {colored(trend_direction, 'green' if trend_direction == 'above' else 'red' if trend_direction == 'below' else 'yellow')}")
 
             # Buy logic
             if not data["position_is_open"]:
@@ -329,7 +353,8 @@ while not shutdown:
                     data["initial_price"] = price
                     continue
 
-                if percent_change <= -buy_threshold and rsi < 30:
+                #if percent_change <= -buy_threshold and (rsi < 30) and (ema9 > ema26):  <<< EMA TREND RISING <<<
+                if percent_change <= -buy_threshold and rsi < 30: 
                     print(f"{colored(' - BUY SIGNAL', 'green')} for {symbol} at {price} USDT (RSI: {rsi})")
                     success = buy(symbol, usd_amount)
                     if success:
