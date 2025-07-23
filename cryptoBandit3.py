@@ -466,7 +466,7 @@ while not shutdown:
         status_color = "green" if status > 0 else "red"
         print(f"{symbol}: {colored(f'{status:.2f} USDT', status_color)}")
 
-    for _ in range(60 * 1):
+    for _ in range(60 * 10):
         if shutdown:
             break
         time.sleep(1)
