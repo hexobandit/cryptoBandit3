@@ -24,12 +24,15 @@ A Python bot for automated cryptocurrency trading on Binance using the Relative 
 - Pandas for RSI calculation and data handling.
 - Tenacity for retry mechanisms.
 
-### Usage:
-- Adjust tracked symbols and thresholds as needed.
-- Requires a Binance account and API keys stored in ```_secrets/__init__py```
-   - (``api_key = 'xxxxxxx'``
-   - ``secret_key= 'xxxxxxx'``)
+### Binance API Key & Secret:
+Requires a Binance account and API keys stored in ```_secrets/__init__py```
 
+```
+    api_key = 'xxxxxxx'
+    secret_key= 'xxxxxxx'
+```
+
+### Install:
 
 ```
     python3 -m venv venv
