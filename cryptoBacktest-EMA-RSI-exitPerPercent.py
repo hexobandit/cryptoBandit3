@@ -11,7 +11,7 @@ client = Client(api_key, secret_key)
 
 # 🎯 Config
 interval = Client.KLINE_INTERVAL_3MINUTE  # Change to 1MINUTE, 1HOUR, etc.
-candles_back = 10000  # Number of candles to fetch for backtesting
+candles_back = 100000  # Number of candles to fetch for backtesting
 trade_amount = 100  # 💵 amount of USDC per trade
 trade_fee_percent = 0.1  # 💸 Fee per trade (0.1% typical for Binance without BNB)
 take_profit_percent = 0.05  # ✅ Take profit at 5% = 0.05

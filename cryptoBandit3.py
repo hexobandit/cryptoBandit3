@@ -86,7 +86,7 @@ for symbol in symbols:
 # Constants
 usd_amount = 100  
 buy_threshold = 0.01           # 0.01 = 1% + RSI < 30
-sell_threshold = 0.01           # 0.01 = 1%
+sell_threshold = 0.05           # 0.01 = 1%
 stop_loss_threshold = 0.8       # 0.80 = 80%
 reset_initial_price = 0.005     # 0.005 = 0.5%
 kline_interval = Client.KLINE_INTERVAL_1MINUTE
