@@ -1,8 +1,11 @@
 # cryptoBandit3
-Binance API Buy Low, Sell High, Multiple Cryptos at the same time (RSI &lt; 30 for buy)
+Binance API Buy Low, Sell High, Multiple Cryptos at the same time (RSI &lt; 30 and EMA trend rising for buy)
 
 ## Description:
-A Python bot for automated cryptocurrency trading on Binance using the Relative Strength Index (RSI) strategy. The bot tracks multiple coins, executes buy/sell orders based on defined thresholds, and provides real-time status updates. Added EMA monitoring as well (buy logic adjusted but commented out for the moment)
+A Python bot for automated cryptocurrency trading on Binance using the Relative Strength Index (RSI) strategy. The bot tracks multiple coins, executes buy/sell orders based on defined thresholds, and provides real-time status updates. Added EMA trend logic.
+
+### Buy Logic
+```if percent_change <= -buy_threshold and (rsi < 30) and (ema1 > ema200):```
 
 ### Key features include:
 
@@ -13,6 +16,7 @@ A Python bot for automated cryptocurrency trading on Binance using the Relative 
 - Real-time performance tracking
 - Slack notifications for critical events (TODO)
 - Persistent state tracking using local files
+- Panic sell option: "Type 'x' + ENTER"
 
 ### Technologies:
 - Binance API for trading and market data.
@@ -55,7 +59,21 @@ Loop time is defined at the end of the script, in bellow example it runs every 1
 ```
 
 
+### Switch to Hourly Candles
+
+1. Change the interval:
+
+```
+    kline_interval = Client.KLINE_INTERVAL_1HOUR
+```
+
+2. Adjust lookback window:
+In both **calculate_rsi** and ***calculate_emas***, replace ```"15 minutes ago UTC"``` and ```"300 minutes ago UTC"``` with:
+
+``` 
+    "400 hours ago UTC" 
+```
+
+
 ## Example Run:
 <img width="641" alt="image" src="https://github.com/user-attachments/assets/93ddc8f6-015e-405d-adfc-d6910ac8e259">
-
-

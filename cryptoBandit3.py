@@ -14,6 +14,7 @@ import tenacity
 import slack_sdk
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+import threading
 sys.path.append('../')  # Adjust path to include the parent directory
 from _secrets import api_key, secret_key
 
@@ -105,7 +106,7 @@ def calculate_rsi(symbol, interval, client):
     try:
         # Fetch historical klines
         klines = client.get_historical_klines(
-            symbol, interval, "15 minutes ago UTC"
+            symbol, interval, "50 minutes ago UTC"
         )
         # Create a DataFrame
         df = pd.DataFrame(
@@ -142,7 +143,7 @@ def calculate_rsi(symbol, interval, client):
 def calculate_emas(symbol, interval, client):
     try:
         # Fetch historical klines
-        klines = client.get_historical_klines(symbol, interval, "90 minutes ago UTC")
+        klines = client.get_historical_klines(symbol, interval, "300 minutes ago UTC")
         df = pd.DataFrame(klines, columns=[
             "timestamp", "open", "high", "low", "close", "volume",
             "close_time", "quote_asset_volume", "number_of_trades",
@@ -151,11 +152,13 @@ def calculate_emas(symbol, interval, client):
         df["close"] = df["close"].astype(float)
 
         # Calculate EMA 9 and EMA 26
+        df["ema1"] = df["close"].ewm(span=1, adjust=False).mean()
         df["ema9"] = df["close"].ewm(span=9, adjust=False).mean()
         df["ema26"] = df["close"].ewm(span=26, adjust=False).mean()
+        df["ema200"] = df["close"].ewm(span=200, adjust=False).mean()
 
         # Return only the current values
-        return df["ema9"].iloc[-1], df["ema26"].iloc[-1]
+        return df["ema1"].iloc[-1], df["ema9"].iloc[-1], df["ema26"].iloc[-1], df["ema200"].iloc[-1]
 
     except Exception as e:
         print(f"Error calculating EMAs for {symbol}: {e}")
@@ -268,6 +271,28 @@ def sell(symbol):
         print(f"Error selling {symbol}: {e}")
         return None
 
+def sell_all_positions():
+    print(colored("\n🔴 Sell-All Triggered", "red"))
+    confirm = input("Type 'YES' to confirm selling all open positions: ").strip()
+    if confirm != "YES":
+        print("❌ Cancelled.")
+        return
+    for symbol in coins:
+        if coins[symbol]["position_is_open"]:
+            print(f" - Attempting to sell {symbol}...")
+            result = sell(symbol)
+            if result:
+                profit_or_loss = (
+                    float(result['cummulativeQuoteQty']) -
+                    (float(result['buy_price']) * float(result['executedQty']))
+                )
+                overall_status[symbol] += profit_or_loss
+                print(f" - Sold {symbol} ✅  ({colored(f'{profit_or_loss:.2f} USDT', 'green' if profit_or_loss >= 0 else 'red')})")
+            else:
+                print(f" - Failed to sell {symbol} ❌")
+    # Save to file
+    with open(status_file, "w") as f:
+        json.dump(overall_status, f, indent=2)
 
 # Terminal colors
 GREEN = "\033[92m"
@@ -307,12 +332,23 @@ except Exception as e:
 
 import math  # Added import for math module
 
-#print("=" * 47)
-#print("Initialize overall status tracker")
-#print("=" * 47)
-#print("")
-#print(client.get_account())  # should succeed without auth errors
-#print("")
+def listen_for_manual_sell():
+    while True:
+        key = input().strip().lower()
+        if key == "x":
+            sell_all_positions()
+
+# Start the keyboard listener
+threading.Thread(target=listen_for_manual_sell, daemon=True).start()
+
+print("=" * 47)
+print(colored("MANUAL COMMANDS", "cyan", attrs=["bold"]))
+print("-" * 47)
+print("To trigger manual sell of ALL open positions:")
+print(colored(" - Type 'x' + ENTER", "yellow", attrs=["bold"]))
+print(" - Then confirm with" + " " + colored("'YES'", "green", attrs=["bold"]) + " to execute.")
+print("-" * 47)
+print("")
 
 # Main loop to monitor all coins
 while not shutdown:
@@ -329,14 +365,20 @@ while not shutdown:
 
             # Calculate RSI & EMA
             rsi = calculate_rsi(symbol, kline_interval, client)
-            ema9, ema26 = calculate_emas(symbol, kline_interval, client)
-            trend_direction = "above" if ema9 > ema26 else "below"
+            ema1, ema9, ema26, ema200 = calculate_emas(symbol, kline_interval, client)
+            trend_ema26 = "above26" if ema9 > ema26 else "below26"
+            trend_ema200 = "above200" if ema1 > ema200 else "below200"
+            rsi_trend = "rsiBellow30" if rsi < 30 else "rsiAbove30" 
 
             # Progress Update
             print(f"\n[{symbol}]")
             print(f" - Current Price: {colored(price, 'cyan')} USDT")
-            print(f" - RSI: {colored(rsi, 'yellow')}")
-            print(f" - EMA(9): {ema9:.4f}, EMA(26): {ema26:.4f}, Trend: {colored(trend_direction, 'green' if trend_direction == 'above' else 'red' if trend_direction == 'below' else 'yellow')}")
+            print(f" - RSI: {colored(rsi, 'yellow')} : {colored(rsi_trend, 'green' if rsi_trend == 'rsiAbove30' else 'red' if rsi_trend == 'rsiBellow30' else 'yellow')}")
+
+            #print(f" - EMA(9): {ema9:.4f}, EMA(26): {ema26:.4f}, Trend: {colored(trend_ema26, 'green' if trend_ema26 == 'above' else 'red' if trend_ema26 == 'below' else 'yellow')}")
+            
+            print(f" - EMA26 Trend: {colored(trend_ema26, 'green' if trend_ema26 == 'above26' else 'red' if trend_ema26 == 'below26' else 'yellow')}")
+            print(f" - EMA200 Trend: {colored(trend_ema200, 'green' if trend_ema200 == 'above200' else 'red' if trend_ema200 == 'below200' else 'yellow')}")
 
             # Buy logic
             if not data["position_is_open"]:
@@ -353,8 +395,10 @@ while not shutdown:
                     data["initial_price"] = price
                     continue
 
-                #if percent_change <= -buy_threshold and (rsi < 30) and (ema9 > ema26):  <<< EMA TREND RISING <<<
-                if percent_change <= -buy_threshold and rsi < 30: 
+                #if percent_change <= -buy_threshold and (rsi < 30) and (ema9 > ema26) and (ema1 > ema200):  <<< EMA TREND RISING <<<
+                #if percent_change <= -buy_threshold and rsi < 30: <<< ORIGINAL
+
+                if percent_change <= -buy_threshold and (rsi < 30) and (ema1 > ema200): 
                     print(f"{colored(' - BUY SIGNAL', 'green')} for {symbol} at {price} USDT (RSI: {rsi})")
                     success = buy(symbol, usd_amount)
                     if success:
@@ -422,7 +466,7 @@ while not shutdown:
         status_color = "green" if status > 0 else "red"
         print(f"{symbol}: {colored(f'{status:.2f} USDT', status_color)}")
 
-    for _ in range(60 * 10):
+    for _ in range(60 * 1):
         if shutdown:
             break
         time.sleep(1)
