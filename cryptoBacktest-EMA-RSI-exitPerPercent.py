@@ -10,8 +10,8 @@ from _secrets import api_key, secret_key
 client = Client(api_key, secret_key)
 
 # 🎯 Config
-interval = Client.KLINE_INTERVAL_1HOUR  # Change to 1MINUTE, 1HOUR, etc.
-candles_back = 8000  # Number of candles to fetch for backtesting
+interval = Client.KLINE_INTERVAL_3MINUTE  # Change to 1MINUTE, 1HOUR, etc.
+candles_back = 10000  # Number of candles to fetch for backtesting
 trade_amount = 100  # 💵 amount of USDC per trade
 trade_fee_percent = 0.1  # 💸 Fee per trade (0.1% typical for Binance without BNB)
 take_profit_percent = 0.05  # ✅ Take profit at 5% = 0.05
@@ -21,6 +21,29 @@ symbols = [
     "DOGEUSDC", "SOLUSDC", "PNUTUSDC", "PEPEUSDC", "SHIBUSDC",
     "XLMUSDC", "LINKUSDC", "SHIBUSDC", "IOTAUSDC"
 ]
+
+# 📊 Available Binance KLINE_INTERVAL options:
+# Minute-based:
+#   Client.KLINE_INTERVAL_1MINUTE     # 1-minute candles
+#   Client.KLINE_INTERVAL_3MINUTE     # 3-minute candles
+#   Client.KLINE_INTERVAL_5MINUTE     # 5-minute candles
+#   Client.KLINE_INTERVAL_15MINUTE    # 15-minute candles
+#   Client.KLINE_INTERVAL_30MINUTE    # 30-minute candles
+#
+# Hour-based:
+#   Client.KLINE_INTERVAL_1HOUR       # 1-hour candles
+#   Client.KLINE_INTERVAL_2HOUR       # 2-hour candles
+#   Client.KLINE_INTERVAL_4HOUR       # 4-hour candles
+#   Client.KLINE_INTERVAL_6HOUR       # 6-hour candles
+#   Client.KLINE_INTERVAL_8HOUR       # 8-hour candles
+#   Client.KLINE_INTERVAL_12HOUR      # 12-hour candles
+#
+# Day/Week/Month:
+#   Client.KLINE_INTERVAL_1DAY        # Daily candles
+#   Client.KLINE_INTERVAL_3DAY        # 3-day candles
+#   Client.KLINE_INTERVAL_1WEEK       # Weekly candles
+#   Client.KLINE_INTERVAL_1MONTH      # Monthly candles
+
 
 def get_klines(symbol, interval, candles=candles_back):
     all_klines = []
