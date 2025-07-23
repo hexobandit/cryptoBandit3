@@ -1,17 +1,18 @@
 # cryptoBandit3
-Binance API Buy Low, Sell High, 10 Cryptos at the same time (RSI &lt; 30 for buy)
+Binance API Buy Low, Sell High, Multiple Cryptos at the same time (RSI &lt; 30 for buy)
 
 ## Description:
-A Python bot for automated cryptocurrency trading on Binance using the Relative Strength Index (RSI) strategy. The bot tracks multiple coins, executes buy/sell orders based on defined thresholds, and provides real-time status updates. 
+A Python bot for automated cryptocurrency trading on Binance using the Relative Strength Index (RSI) strategy. The bot tracks multiple coins, executes buy/sell orders based on defined thresholds, and provides real-time status updates. Added EMA monitoring as well (buy logic adjusted but commented out for the moment)
 
 ### Key features include:
 
 - Tracks multiple coins like BTCUSDT, ETHUSDT, etc.
-- RSI-based buy signals (RSI < 30).
-- Custom thresholds for buy, sell, and stop-loss.
-- Real-time performance tracking.
+- RSI-based buy signals (RSI < 30)
+- EMA monitoring
+- Custom thresholds for buy, sell, and stop-loss
+- Real-time performance tracking
 - Slack notifications for critical events (TODO)
-- Persistent state tracking using local files.
+- Persistent state tracking using local files
 
 ### Technologies:
 - Binance API for trading and market data.
