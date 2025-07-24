@@ -10,12 +10,13 @@ from _secrets import api_key, secret_key
 client = Client(api_key, secret_key)
 
 # 🎯 Config
-interval = Client.KLINE_INTERVAL_1MINUTE  # Change to 1MINUTE, 1HOUR, etc.
-max_candles = 50000  # Number of candles to fetch for backtesting
+interval = Client.KLINE_INTERVAL_1HOUR  # Change to 1MINUTE, 1HOUR, etc.
+max_candles = 5000  # Number of candles to fetch for backtesting
 trade_amount = 100  # 💵 amount of USDC per trade
 trade_fee_percent = 0.1  # 💸 Fee per trade (0.1% typical for Binance without BNB)
-take_profit_percent = 0.01  # ✅ Take profit at 5% = 0.05
-start_date = "2022-01-01" # 📅 Start date for backtesting (YYYY-MM-DD) up to now
+take_profit_percent = 0.10  # ✅ Take profit at 5% = 0.05
+stop_loss_percent = -0.40  # ❌ Stop loss -0.05 for 5% loss etc.)
+start_date = "2024-01-01" # 📅 Start date for backtesting (YYYY-MM-DD) up to now
 
 symbols = [
     "BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "XRPUSDC",
@@ -66,9 +67,10 @@ RESET = "\033[0m"
 
 
 print("")
-print("==================================================================")
+print("")
 print("📊 CRYPTOBANDIT - Crypto Backtest")
-print("📊 EMA & RSI Strategy with Exit at Profit Percent\n")
+print("📊 EMA & RSI Strategy with Exit at Profit Percent")
+print("--------------------------------------")
 
 
 def get_klines(symbol, interval, start_date=start_date, max_candles=max_candles):
@@ -161,12 +163,15 @@ def backtest(df):
             sell_price = price
             gain_percent = (sell_price - buy_price) / buy_price
 
-            if gain_percent >= take_profit_percent:  # ✅ 5% profit
+            if gain_percent >= take_profit_percent or gain_percent <= stop_loss_percent:
                 proceeds = sell_price * quantity
                 fee_sell = proceeds * (trade_fee_percent / 100)
                 profit = proceeds - trade_amount - fee_buy - fee_sell
                 total_profit += profit
                 in_position = False
+
+                reason = "Take Profit" if gain_percent >= take_profit_percent else "Stop Loss"
+
                 trades.append((
                     "SELL",
                     df["timestamp"].iloc[i],
@@ -175,20 +180,26 @@ def backtest(df):
                     fee_sell,
                     profit
                 ))
-                #print(f"🚀 5% gain reached → SELL at {sell_price:.2f} ({gain_percent*100:.2f}%)")
+
+                #print(f"⚠️ {reason} → SELL @ {sell_price:.2f} | PnL: {profit:.2f} | Change: {gain_percent*100:.2f}%")
 
     return trades, total_profit
 
 def run_all_backtests():
     results = []
     for symbol in symbols:
-        print(f"\n🔍 Backtesting {symbol} with ${trade_amount} per trade...")
+        print(f"\n🔍 {symbol} - Starting to fetch data..")
+        print("--------------------------------------")
         try:
             df = get_klines(symbol, interval, start_date, max_candles)
             #print(f"🗓️  {symbol} - Showing data from {df['timestamp'].iloc[0]} to {df['timestamp'].iloc[-1]}")
-            print(f"📊 {symbol} - Total candles fetched: {len(df)}")
+            
+            print(f"\n📊 {symbol} - Total candles fetched: {len(df)}")
+            print("--------------------------------------")
             print(df[['timestamp', 'close']].iloc[[0, -1]])
-            print(f"📈 {symbol} - Starting backtest...")
+
+            print(f"\n📈 {symbol} - Starting backtest...")
+            print("--------------------------------------")
             trades, profit = backtest(df)
             for t in trades:
                 side, ts, price, amount, fee, profit_or_none = t
@@ -197,7 +208,7 @@ def run_all_backtests():
                 else:
                     print(f"🔴 SELL @ {price:.4f} on {ts} | Received: ${amount:.2f} - Fee: ${fee:.4f} → PnL: {profit_or_none:+.2f}")
             results.append((symbol, profit, len(trades)//2))
-            print(f"✅ {symbol}: Net profit = {profit:.2f} USDC | Trades = {len(trades)//2}")
+            print(f"\n✅ {symbol}: Net profit = {profit:.2f} USDC | Trades = {len(trades)//2}")
         except Exception as e:
             print(f"❌ Error with {symbol}: {e}")
     return results
@@ -205,6 +216,17 @@ def run_all_backtests():
 if __name__ == "__main__":
     summary = run_all_backtests()
     print("\n📊 Final Summary")
+    print("--------------------------------------")
+    print(f" - Interval:           {interval}")
+    print(f" - Max candles:        {max_candles:,}")
+    print(f" - Trade amount:       ${trade_amount}")
+    print(f" - Trade fee:          {trade_fee_percent:.2f}% per trade")
+    print(f" - Take profit:        {take_profit_percent * 100:.2f}%")
+    print(f" - Stop loss:          {stop_loss_percent * 100:.2f}%")
+    print(f" - Start date:         {start_date}")
+ 
+    print("\n📊 Profit vs Loss")
+    print("--------------------------------------")
     for symbol, profit, trade_count in summary:
         color = "\033[92m" if profit >= 0 else "\033[91m"
         print(f"{symbol}: {color}{profit:.2f} USDC ({trade_count} trades)\033[0m")
