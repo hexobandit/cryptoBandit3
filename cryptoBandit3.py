@@ -296,6 +296,7 @@ def sell_all_positions():
 
 # Terminal colors
 GREEN = "\033[92m"
+GREY = "\033[90m"
 END = "\033[0m"
 
 # Check connection and print USDT balance
@@ -376,8 +377,8 @@ while not shutdown:
             print(f" - RSI: {colored(rsi, 'yellow')} : {colored(rsi_trend, 'green' if rsi_trend == 'rsiAbove30' else 'red' if rsi_trend == 'rsiBellow30' else 'yellow')}")
 
             #print(f" - EMA(9): {ema9:.4f}, EMA(26): {ema26:.4f}, Trend: {colored(trend_ema26, 'green' if trend_ema26 == 'above' else 'red' if trend_ema26 == 'below' else 'yellow')}")
-            
-            print(f" - EMA26 Trend: {colored(trend_ema26, 'green' if trend_ema26 == 'above26' else 'red' if trend_ema26 == 'below26' else 'yellow')}")
+            #print(f" - EMA26 Trend: {colored(trend_ema26, 'green' if trend_ema26 == 'above26' else 'red' if trend_ema26 == 'below26' else 'yellow')}")
+           
             print(f" - EMA200 Trend: {colored(trend_ema200, 'green' if trend_ema200 == 'above200' else 'red' if trend_ema200 == 'below200' else 'yellow')}")
 
             # Buy logic
@@ -388,10 +389,10 @@ while not shutdown:
                     continue
 
                 percent_change = (price - data["initial_price"]) / data["initial_price"]
-                print(f" - Price change: {percent_change * 100:.2f}% vs reset threshold {reset_initial_price * 100:.2f}%")
+                print(f"{GREY} - Price change: {percent_change * 100:.2f}% vs reset threshold {reset_initial_price * 100:.2f}%{END}")
 
                 if percent_change > reset_initial_price:
-                    print(f" - Price change > reset threshold ({reset_initial_price*100:.2f}%), resetting initial price.")
+                    print(f"{GREY} - Price change > reset threshold ({reset_initial_price*100:.2f}%), resetting initial price.{END}")
                     data["initial_price"] = price
                     continue
 
