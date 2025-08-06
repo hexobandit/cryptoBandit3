@@ -20,3 +20,4 @@ Thumbs.db
 output_*
 order_id*
 status.json
+*.csv
