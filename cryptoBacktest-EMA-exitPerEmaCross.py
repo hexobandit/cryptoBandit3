@@ -10,8 +10,8 @@ from _secrets import api_key, secret_key
 client = Client(api_key, secret_key)
 
 # 🎯 Config
-interval = Client.KLINE_INTERVAL_1MINUTE  # Change to 1MINUTE, 1HOUR, etc.
-candles_back = 8000  # Number of candles to fetch for backtesting
+interval = Client.KLINE_INTERVAL_1DAY  # Change to 1MINUTE, 1HOUR, etc.
+candles_back = 1000  # Number of candles to fetch for backtesting
 trade_amount = 100  # 💵 amount of USDC per trade
 trade_fee_percent = 0.1  # 💸 Fee per trade (0.1% typical for Binance without BNB)
 

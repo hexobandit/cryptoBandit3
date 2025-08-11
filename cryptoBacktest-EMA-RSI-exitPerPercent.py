@@ -10,12 +10,12 @@ from _secrets import api_key, secret_key
 client = Client(api_key, secret_key)
 
 # 🎯 Config
-interval = Client.KLINE_INTERVAL_1HOUR  # Change to 1MINUTE, 1HOUR, etc.
-max_candles = 5000  # Number of candles to fetch for backtesting
+interval = Client.KLINE_INTERVAL_1MINUTE  # Change to 1MINUTE, 1HOUR, etc.
+max_candles = 500000  # Number of candles to fetch for backtesting
 trade_amount = 100  # 💵 amount of USDC per trade
 trade_fee_percent = 0.1  # 💸 Fee per trade (0.1% typical for Binance without BNB)
-take_profit_percent = 0.10  # ✅ Take profit at 5% = 0.05
-stop_loss_percent = -0.40  # ❌ Stop loss -0.05 for 5% loss etc.)
+take_profit_percent = 0.01  # ✅ Take profit at 5% = 0.05
+stop_loss_percent = -0.90  # ❌ Stop loss -0.05 for 5% loss etc.)
 start_date = "2024-01-01" # 📅 Start date for backtesting (YYYY-MM-DD) up to now
 
 symbols = [
