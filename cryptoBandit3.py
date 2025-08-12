@@ -47,8 +47,8 @@ signal.signal(signal.SIGTERM, handle_exit)
 
 coins = {
     symbol: {
-        "filename_order_id": f"order_id_{symbol}.txt",
-        "filename_output": f"output_{symbol}.txt",
+        "filename_order_id": f"orders/order_id_{symbol}.txt",
+        "filename_output": f"outputs/output_{symbol}.txt",
         "buy_price": None,
         "sell_price": None,
         "bought_quantity": None,  # Track exact quantity bought
