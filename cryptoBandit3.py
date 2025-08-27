@@ -84,7 +84,7 @@ for symbol in symbols:
         overall_status[symbol] = 0
 
 # Constants
-usd_amount = 100  
+usd_amount = 30  
 buy_threshold = 0.01           # 0.01 = 1% + RSI < 30
 sell_threshold = 0.02           # 0.01 = 1%
 stop_loss_threshold = 0.8       # 0.80 = 80%
@@ -467,7 +467,7 @@ while not shutdown:
         status_color = "green" if status > 0 else "red"
         print(f"{symbol}: {colored(f'{status:.2f} USDT', status_color)}")
 
-    for _ in range(60 * 10):
+    for _ in range(60 * 1):
         if shutdown:
             break
         time.sleep(1)

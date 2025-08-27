@@ -13,6 +13,7 @@ import pandas as pd
 from binance.client import Client
 import tenacity
 import threading
+import numpy as np
 sys.path.append('../')
 from _secrets import api_key, secret_key
 
@@ -35,8 +36,8 @@ signal.signal(signal.SIGTERM, handle_exit)
 
 coins = {
     symbol: {
-        "filename_order_id": f"orders_candles_1m/order_id_{symbol}.txt",
-        "filename_output": f"outputs_candles_1m/output_{symbol}.txt",
+        "filename_order_id": f"orders_candles_ema/order_id_{symbol}.txt",
+        "filename_output": f"outputs_candles_ema/output_{symbol}.txt",
         "buy_price": None,
         "sell_price": None,
         "bought_quantity": None,
@@ -48,8 +49,8 @@ coins = {
 }
 
 # Create directories if they don't exist
-os.makedirs("orders_candles_1m", exist_ok=True)
-os.makedirs("outputs_candles_1m", exist_ok=True)
+os.makedirs("orders_candles_ema", exist_ok=True)
+os.makedirs("outputs_candles_ema", exist_ok=True)
 
 # Restore state from files
 for symbol in symbols:
@@ -69,7 +70,7 @@ for symbol in symbols:
         continue
 
 # Load profit/loss tracking
-status_file = "status_candles_1m.json"
+status_file = "status_candles_ema.json"
 overall_status = {}
 if os.path.exists(status_file):
     with open(status_file, "r") as f:
@@ -80,21 +81,71 @@ for symbol in symbols:
     if symbol not in overall_status:
         overall_status[symbol] = 0
 
+
 # Trading Constants - Based on successful backtest results
 usd_amount = 150  # USDT per trade
 kline_interval = Client.KLINE_INTERVAL_1MINUTE  
-candles_lookback = 20  # Number of candles to analyze for patterns
-take_profit_percent = 0.01  # 5% take profit (same as backtest)
-stop_loss_percent = 0.30   # 10% stop loss (same as backtest)
+candles_lookback = 100  # Increased lookback for EMA calculations
+take_profit_percent = 0.009  # 0.9% take profit (same as backtest)
+stop_loss_percent = 0.10   # 10% stop loss (same as backtest)
 check_interval_minutes = 1  # Check positions every minute for 1m candles
 trade_fee_percent = 0.001  # 0.1% fee per trade (buy + sell = 0.2% total)
+
+# EMA configuration
+ema_short_period = 7   # EMA7 for trend detection
+ema_long_period = 99   # EMA99 for major trend
 
 # Set up the Binance API client
 client = Client(api_key, secret_key)
 
+# EMA Calculation Functions
+def calculate_ema(prices, period):
+    """Calculate Exponential Moving Average"""
+    if len(prices) < period:
+        return None
+    
+    prices = np.array(prices)
+    alpha = 2 / (period + 1)
+    ema = np.zeros(len(prices))
+    ema[0] = prices[0]
+    
+    for i in range(1, len(prices)):
+        ema[i] = alpha * prices[i] + (1 - alpha) * ema[i-1]
+    
+    return ema[-1]  # Return the latest EMA value
+
+def get_ema_values(df):
+    """Calculate EMA7 and EMA99 from price data"""
+    closes = df['close'].astype(float).tolist()
+    
+    ema7 = calculate_ema(closes, ema_short_period)
+    ema99 = calculate_ema(closes, ema_long_period)
+    
+    return ema7, ema99
+
+def check_ema_crossover(df):
+    """Check if EMA7 has crossed below EMA99 (bearish signal)"""
+    if len(df) < max(ema_short_period, ema_long_period) + 1:
+        return False, None, None
+    
+    # Get current and previous EMA values
+    current_ema7, current_ema99 = get_ema_values(df)
+    
+    # Get previous candle data for crossover detection
+    prev_df = df.iloc[:-1]
+    prev_ema7, prev_ema99 = get_ema_values(prev_df)
+    
+    if None in [current_ema7, current_ema99, prev_ema7, prev_ema99]:
+        return False, current_ema7, current_ema99
+    
+    # Check for bearish crossover: EMA7 was above EMA99 and now below
+    bearish_crossover = (prev_ema7 > prev_ema99) and (current_ema7 < current_ema99)
+    
+    return bearish_crossover, current_ema7, current_ema99
+
 # Candlestick Pattern Detection Functions (same as backtesting)
 @tenacity.retry(wait=tenacity.wait_fixed(10), stop=tenacity.stop_after_delay(300))
-def get_candle_data(symbol, interval, client, limit=20):
+def get_candle_data(symbol, interval, client, limit=100):
     """Fetch recent candlestick data for pattern analysis"""
     try:
         klines = client.get_historical_klines(
@@ -391,23 +442,35 @@ def sell(symbol, reason="Manual"):
         print(f"{colored(f' ❌ SELL ERROR for {symbol}: {e}', 'red')}")
         return None
 
-def check_exit_conditions(symbol, current_price):
-    """Check if position should be closed due to stop loss or take profit"""
+def check_enhanced_exit_conditions(symbol, current_price, df):
+    """Enhanced exit conditions with EMA logic"""
     if not coins[symbol]["position_is_open"]:
         return False
     
     buy_price = coins[symbol]["buy_price"]
     price_change = (current_price - buy_price) / buy_price
     
-    # Check take profit
+    # Get EMA values and crossover status
+    ema_crossover, ema7, ema99 = check_ema_crossover(df)
+    
+    # Enhanced Exit Logic:
+    # 1. If position is at a loss AND EMA7 crosses below EMA99 = SELL
+    if price_change < 0 and ema_crossover:
+        print(f"{colored(f' ⚠️  EMA CROSSOVER LOSS EXIT for {symbol}', 'red')}")
+        print(f" - Price change: {price_change*100:.2f}%")
+        print(f" - EMA7: {ema7:.6f} crossed below EMA99: {ema99:.6f}")
+        sell(symbol, "EMA Crossover Loss")
+        return True
+    
+    # 2. Standard take profit
     if price_change >= take_profit_percent:
         print(f"{colored(f' 🎯 TAKE PROFIT TRIGGERED for {symbol}', 'green')}")
         print(f" - Price change: +{price_change*100:.2f}%")
         sell(symbol, "Take Profit")
         return True
     
-    # Check stop loss
-    elif price_change <= -stop_loss_percent:
+    # 3. Standard stop loss (unchanged)
+    if price_change <= -stop_loss_percent:
         print(f"{colored(f' 🛑 STOP LOSS TRIGGERED for {symbol}', 'red')}")
         print(f" - Price change: {price_change*100:.2f}%")
         sell(symbol, "Stop Loss")
@@ -458,15 +521,17 @@ try:
         if balance['asset'] == 'USDC':
             print("")
             print("=" * 70)
-            print("🚀 CryptoBandit Candlestick LIVE Trading Bot")
+            print("🚀 CryptoBandit Candlestick LIVE Trading Bot (EMA Enhanced)")
             print("=" * 70)
             print(f"Starting USDC balance:           {GREEN}{balance['free']}{END}")
             print(f"Timeframe:                       {YELLOW}1 Minute Candles{END}")
-            print(f"Strategy:                        {CYAN}Candlestick Patterns{END}")
+            print(f"Strategy:                        {CYAN}Candlestick + EMA Trend Filter{END}")
             print(f"Symbols:                         {CYAN}{len(symbols)} pairs{END}")
             print(f"Trade Amount:                    {YELLOW}{usd_amount} USDT{END}")
+            print(f"Entry Requirement:               {GREEN}EMA7 > EMA99 (Bullish trend){END}")
             print(f"Take Profit:                     {GREEN}+{take_profit_percent*100}%{END}")
             print(f"Stop Loss:                       {RED}-{stop_loss_percent*100}%{END}")
+            print(f"EMA Exit Logic:                  {YELLOW}Sell losses if EMA7 crosses below EMA99{END}")
             print(f"Trading Fees:                    {YELLOW}0.1% per trade (0.2% total){END}")
             print("=" * 70)
             print("")
@@ -482,7 +547,7 @@ except Exception as e:
 threading.Thread(target=listen_for_manual_sell, daemon=True).start()
 
 print("=" * 70)
-print(colored("🎯 LIVE TRADING ACTIVE", "green", attrs=["bold"]))
+print(colored("🎯 EMA-ENHANCED LIVE TRADING ACTIVE", "green", attrs=["bold"]))
 print("-" * 70)
 print("Commands:")
 print(colored(" - Type 'x' + ENTER", "yellow", attrs=["bold"]) + " → Emergency sell all positions")
@@ -495,12 +560,22 @@ while not shutdown:
     
     for symbol, data in coins.items():
         try:
-            # Get current price
+            # Get current price and candle data for EMA calculations
             ticker = client.get_symbol_ticker(symbol=symbol)
             current_price = float(ticker['price'])
+            df = get_candle_data(symbol, kline_interval, client, candles_lookback)
             
             print(f"\n[{symbol}]")
             print(f" - Current Price: {colored(current_price, 'cyan')} USDT")
+            
+            # Calculate and display EMA values
+            ema_crossover, ema7, ema99 = check_ema_crossover(df)
+            if ema7 is not None and ema99 is not None:
+                ema_trend = "Bullish" if ema7 > ema99 else "Bearish"
+                ema_color = 'green' if ema7 > ema99 else 'red'
+                print(f" - EMA7: {ema7:.6f} | EMA99: {ema99:.6f} | Trend: {colored(ema_trend, ema_color)}")
+                if ema_crossover:
+                    print(f" - {colored('⚠️  EMA BEARISH CROSSOVER DETECTED', 'red', attrs=['bold'])}")
             
             # Check exit conditions first if we have a position
             if data["position_is_open"]:
@@ -512,30 +587,40 @@ while not shutdown:
                 print(f" - P&L: {colored(f'{price_change*100:+.2f}%', 'green' if price_change > 0 else 'red')}")
                 print(f" - Entry Pattern: {colored(entry_pattern, 'yellow')}")
                 
-                # Check exit conditions
-                if check_exit_conditions(symbol, current_price):
+                # Check enhanced exit conditions
+                if check_enhanced_exit_conditions(symbol, current_price, df):
                     continue  # Position was closed, move to next symbol
             
             else:
                 # Look for entry signals
-                df = get_candle_data(symbol, kline_interval, client, candles_lookback)
                 buy_signals, sell_signals, _ = analyze_candlestick_patterns(df)
                 
                 if buy_signals:
                     pattern_text = ', '.join(buy_signals)
                     print(f"{colored(' 🟢 BUY SIGNAL DETECTED', 'green')} - {colored(pattern_text, 'yellow')}")
                     
-                    # Execute buy order
-                    success = buy(symbol, usd_amount, pattern_text)
-                    if success:
-                        print(f"{colored(' 🎯 POSITION OPENED', 'green')} for {symbol}")
+                    # Check EMA7 > EMA99 condition before buying (bullish trend required)
+                    if ema7 is not None and ema99 is not None and ema7 > ema99:
+                        print(f"{colored(' ✅ EMA TREND CONFIRMED', 'green')} - EMA7 > EMA99 (Bullish)")
+                        
+                        # Execute buy order
+                        success = buy(symbol, usd_amount, pattern_text)
+                        if success:
+                            print(f"{colored(' 🎯 POSITION OPENED', 'green')} for {symbol}")
+                    else:
+                        print(f"{colored(' ❌ EMA TREND REJECTED', 'red')} - EMA7 ≤ EMA99 (Not bullish)")
+                        if ema7 is not None and ema99 is not None:
+                            print(f" - EMA7: {ema7:.6f} ≤ EMA99: {ema99:.6f}")
                 else:
                     print(f" - Status: {colored('No signals - Waiting', 'grey')}")
             
             # Log to output file
             with open(data["filename_output"], "a") as f:
                 status = "OPEN" if data["position_is_open"] else "CLOSED"
-                f.write(f"{datetime.datetime.now()}: {symbol} - {current_price:.4f} USDT - {status}\n")
+                ema_info = ""
+                if ema7 is not None and ema99 is not None:
+                    ema_info = f" | EMA7: {ema7:.6f} | EMA99: {ema99:.6f}"
+                f.write(f"{datetime.datetime.now()}: {symbol} - {current_price:.4f} USDT - {status}{ema_info}\n")
             
         except Exception as e:
             print(f"{colored(f' - Error processing {symbol}: {e}', 'red')}")

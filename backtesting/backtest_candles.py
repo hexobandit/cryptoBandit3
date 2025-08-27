@@ -27,7 +27,7 @@ client = Client(api_key, secret_key)
 # Configuration
 # Start with fewer symbols for faster testing
 symbols = [
-    "BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "XRPUSDC", "DOGEUSDC", "SOLUSDC", "PNUTUSDC", "PEPEUSDC", "SHIBUSDC", "XLMUSDC", "LINKUSDC", "IOTAUSDC"
+    "BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "XRPUSDC", "DOGEUSDC", "SOLUSDC", "PEPEUSDC", "SHIBUSDC", "XLMUSDC", "LINKUSDC", "IOTAUSDC"
 ]
 
 # Available timeframes to test (start with fewer for faster testing)
@@ -44,8 +44,8 @@ timeframes = {
 # Trading parameters
 trade_amount = 100  # USDT per trade
 trade_fee_percent = 0.001  # 0.1% fee
-stop_loss_percent = -0.10  # 10% stop loss
-take_profit_percent = 0.05  # 5% take profit
+stop_loss_percent = -0.10  # 9%
+take_profit_percent = 0.01 # 18%
 
 def get_historical_data(symbol, interval, days_back=365):
     """Fetch historical data for backtesting"""

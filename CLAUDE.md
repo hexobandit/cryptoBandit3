@@ -4,92 +4,149 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python-based cryptocurrency trading bot for Binance that uses RSI and EMA technical indicators to automate buy/sell decisions across multiple cryptocurrency pairs. The bot runs continuously, monitoring market conditions and executing trades based on configurable thresholds.
+This is an advanced cryptocurrency trading bot suite with multiple strategies: RSI/EMA technical analysis and candlestick pattern recognition. The system includes live trading bots, comprehensive backtesting, and interactive performance dashboards.
+
+## Trading Strategies
+
+### 1. RSI + EMA Strategy (`cryptoBandit3.py`)
+- **Logic**: `percent_change <= -buy_threshold and (rsi < 30) and (ema1 > ema200)`
+- **Files**: `orders/`, `outputs/`, `status.json`
+- **Timeframe**: 1-minute candles with 10-minute check intervals
+
+### 2. Candlestick Pattern Strategy
+- **Signal Detection**: `cryptoBanditCandles.py` (analysis only)
+- **Live Trading**: `cBc-live.py` (1-minute candles, real trades)
+- **Patterns**: Hammer, Bullish/Bearish Engulfing, Morning/Evening Star, Doji, Shooting Star
+- **Files**: `orders_candles_1m/`, `outputs_candles_1m/`, `status_candles_1m.json`
+- **Exit Logic**: 1% take profit OR 10% stop loss OR bearish patterns
 
 ## Setup and Installation
 
 ```bash
-# Create virtual environment
+# Environment setup
 python3 -m venv venv
 source ./venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Configure API keys
-# Create _secrets/__init__.py with:
-# api_key = 'your_binance_api_key'
-# secret_key = 'your_binance_secret_key'
+# API credentials in _secrets/__init__.py:
+api_key = 'your_binance_api_key'
+secret_key = 'your_binance_secret_key'
+```
 
-# Run the main trading bot
+## Common Commands
+
+```bash
+# RSI/EMA live trading
 python3 cryptoBandit3.py
+
+# Candlestick pattern detection (signals only)
+python3 cryptoBanditCandles.py
+
+# Candlestick live trading (real money)
+python3 cBc-live.py
+
+# Run comprehensive backtesting
+cd backtesting && python3 backtest_candles.py
+
+# Generate performance dashboards
+cd backtesting && python3 create_dashboard.py
 ```
 
-## Core Architecture
+## Backtesting Architecture
 
-### Main Trading Bot (`cryptoBandit3.py`)
-- **Trading Logic**: RSI < 30 + EMA trend analysis + price drop threshold triggers buy signals
-- **Multi-coin Support**: Tracks 14 cryptocurrency pairs simultaneously (BTCUSDC, ETHUSDC, etc.)
-- **State Management**: Persists position data in individual text files (`order_id_{SYMBOL}.txt`)
-- **Profit Tracking**: Maintains overall P&L in `status.json`
-- **Manual Controls**: Press 'x' + ENTER to trigger emergency sell-all
+### Core Backtesting (`backtesting/backtest_candles.py`)
+- **Historical Data**: 365 days across 9 timeframes (1m to 3d)
+- **Symbols**: 13 cryptocurrency pairs
+- **Strategy**: Long-only candlestick pattern recognition
+- **Risk Management**: 1% take profit, 10% stop loss
+- **Fee Calculation**: 0.1% per trade (0.2% total per round trip)
 
-### Key Trading Parameters (in `cryptoBandit3.py`)
-```python
-usd_amount = 100                # Trade size per position
-buy_threshold = 0.01            # 1% price drop required
-sell_threshold = 0.02           # 2% profit target
-stop_loss_threshold = 0.8       # 80% stop loss
-reset_initial_price = 0.003     # 0.3% price reset threshold
-kline_interval = Client.KLINE_INTERVAL_1MINUTE  # Candle timeframe
-```
+### Exit Conditions (When Backtesting Sells)
+1. **Take Profit**: +1% price increase from entry
+2. **Stop Loss**: -10% price decrease from entry  
+3. **End of Data**: Close remaining positions at final candle
 
-### Buy Signal Logic
-```python
-if percent_change <= -buy_threshold and (rsi < 30) and (ema1 > ema200):
-```
-
-### Backtesting Scripts
-- `cryptoBacktest-EMA-RSI-exitPerPercent.py`: Backtest with percentage-based exits
-- `cryptoBacktest-EMA-exitPerEmaCross.py`: Backtest with EMA crossover exits
+### Dashboard Generation (`backtesting/create_dashboard.py`)
+- **Dependencies**: `pip install plotly seaborn matplotlib`
+- **Output**: 6 interactive HTML dashboards + comprehensive report
+- **Data Source**: `backtest_results.json`
 
 ## File Structure
 
-- **Trading State Files**: `order_id_{SYMBOL}.txt` - Contains buy price and quantity for open positions
-- **Output Files**: `output_{SYMBOL}.txt` - Price history logs for each symbol
-- **Status Tracking**: `status.json` - Overall profit/loss tracking across all symbols
-- **Configuration**: Trading parameters are hardcoded in the main script
+```
+├── cryptoBandit3.py              # RSI/EMA strategy
+├── cryptoBanditCandles.py        # Pattern detection only
+├── cBc-live.py                   # Live candlestick trading
+├── backtesting/
+│   ├── backtest_candles.py       # Comprehensive backtesting
+│   ├── create_dashboard.py       # Dashboard generator
+│   └── *.html                    # Generated dashboards
+├── orders/                       # RSI strategy positions
+├── orders_candles_1m/            # Live trading positions
+├── _secrets/__init__.py          # API credentials (git-ignored)
+└── status*.json                  # P&L tracking files
+```
 
-## Technical Indicators
+## Pattern Detection Logic
 
-### RSI Calculation
-- 14-period RSI using 50-minute lookback window
-- Buy trigger: RSI < 30 (oversold condition)
+### Bullish Patterns (Buy Signals)
+- **Hammer**: `lower_shadow >= 2 * body AND upper_shadow <= body * 0.5`
+- **Bullish Engulfing**: Current green candle engulfs previous red candle
+- **Morning Star**: 3-candle bullish reversal pattern
+- **Doji**: `body <= range * 0.1` (indecision candle)
 
-### EMA Analysis
-- EMA1, EMA9, EMA26, EMA200 calculated from 300-minute window
-- Trend confirmation: EMA1 > EMA200 for bullish bias
+### Bearish Patterns (Sell Signals)
+- **Shooting Star**: `upper_shadow >= 2 * body AND lower_shadow <= body * 0.5`
+- **Bearish Engulfing**: Current red candle engulfs previous green candle
+- **Evening Star**: 3-candle bearish reversal pattern
 
-## Switching to Different Timeframes
+## Live Trading Configuration
 
-To switch from 1-minute to hourly candles:
-1. Change `kline_interval = Client.KLINE_INTERVAL_1HOUR`
-2. Update lookback windows in `calculate_rsi()` and `calculate_emas()`:
-   - Replace `"50 minutes ago UTC"` with `"400 hours ago UTC"`
-   - Replace `"300 minutes ago UTC"` with `"400 hours ago UTC"`
+### Candlestick Live Trading (`cBc-live.py`)
+```python
+usd_amount = 150                    # USDT per trade
+take_profit_percent = 0.01          # 1% profit target
+stop_loss_percent = 0.10            # 10% stop loss
+check_interval_minutes = 1          # Check every minute
+symbols = [13 cryptocurrency pairs] # All backtest-validated pairs
+```
 
-## Dependencies
+### Emergency Controls
+- **Manual Sell**: Type 'x' + ENTER → confirm with 'YES'
+- **Graceful Shutdown**: Ctrl+C
+- **State Persistence**: Positions survive bot restarts
 
-Core libraries from `requirements.txt`:
-- `python-binance` - Binance API client
-- `pandas` - Data analysis for technical indicators
-- `tenacity` - Retry mechanisms for API calls
-- `termcolor` - Colored terminal output
-- `slack_sdk` - Slack notifications (TODO feature)
+## Performance Metrics
 
-## Security Notes
+Recent backtesting results show:
+- **Total Profit**: $2,908.37 USDT (10,995 trades)
+- **Win Rate**: 66.8% across all timeframes
+- **Best Timeframe**: 3-day candles
+- **Fee-Adjusted Returns**: All P&L includes 0.2% trading fees
 
-- API keys must be stored in `_secrets/__init__.py` (excluded from git)
-- The bot uses market orders for immediate execution
-- Position sizing is controlled by `usd_amount` constant
-- Emergency sell-all function available via 'x' command
+## Key Architecture Concepts
+
+### Position Management
+- **State Files**: CSV format with `buy_price,quantity,entry_date,pattern`
+- **One Position Per Symbol**: Maximum one open position per cryptocurrency
+- **Fee Integration**: All profit calculations include Binance trading fees
+- **Pattern Tracking**: Entry patterns recorded for performance analysis
+
+### Data Pipeline
+1. **Live Trading**: Binance WebSocket → Pattern Analysis → Trade Execution
+2. **Backtesting**: Historical Klines → Pattern Detection → Simulated Trading
+3. **Dashboards**: JSON Results → Plotly Visualizations → HTML Reports
+
+### Risk Management
+- Stop losses prevent catastrophic losses
+- Take profits lock in gains systematically  
+- Position limits prevent overexposure
+- Fee calculations ensure realistic backtesting
+
+## Development Notes
+
+When modifying trading parameters:
+- Test changes in backtesting first
+- Update corresponding live trading constants
+- Verify fee calculations remain accurate
+- Regenerate dashboards to validate performance impact
