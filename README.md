@@ -1,82 +1,102 @@
-# cryptoBandit3
-Binance API Buy Low, Sell High, Multiple Cryptos at the same time (RSI &lt; 30 and EMA trend rising for buy)
+# CryptoBandit3 - Advanced Cryptocurrency Trading Bot Suite
 
-## Description:
-A Python bot for automated cryptocurrency trading on Binance using the Relative Strength Index (RSI) strategy. The bot tracks multiple coins, executes buy/sell orders based on defined thresholds, and provides real-time status updates. Added EMA trend logic.
+Automated trading system for Binance with multiple strategies, professional risk management, and comprehensive backtesting capabilities.
 
-### Buy Logic
-```if percent_change <= -buy_threshold and (rsi < 30) and (ema1 > ema200):```
+## 🤖 Trading Bots
 
-### Key features include:
+### RSI/EMA Strategy
+- **`cryptoBandit3.py`** - Original RSI + EMA strategy (RSI < 30, EMA1 > EMA200)
+- Trades 14 pairs with 1-minute candles
+- P&L tracking in `status.json`
 
-- Tracks multiple coins like BTCUSDT, ETHUSDT, etc.
-- RSI-based buy signals (RSI < 30)
-- EMA monitoring
-- Custom thresholds for buy, sell, and stop-loss
-- Real-time performance tracking
-- Slack notifications for critical events (TODO)
-- Persistent state tracking using local files
-- Panic sell option: "Type 'x' + ENTER"
+### Candlestick Pattern Bots
+- **`cryptoBanditCandles.py`** - Pattern detection only (analysis mode)
+- **`cBc-live.py`** - Basic live trading with patterns
+- **`cBc-live-advanced.py`** - Graduated exits, stop-loss waits
+- **`cBc-live-pro.py`** - **NEW: DRY_RUN mode**, BTC correlation filter
+- **`cBc-live-ema-4h.py`** - 4-hour EMA-enhanced patterns
+- **`cBc-trader-pro.py`** - **Most Advanced**: Trend lines, S/R levels, progressive trailing stops, **DRY_RUN mode**
+- **`cBc-channel-trader.py`** - Channel-based strategy
 
-### Technologies:
-- Binance API for trading and market data.
-- Slack SDK for notifications. (TODO)
-- Pandas for RSI calculation and data handling.
-- Tenacity for retry mechanisms.
+### Key Features
+- **DRY_RUN Mode**: Test strategies without real money (in pro versions)
+- **Pattern Recognition**: Hammer, Engulfing, Morning/Evening Star, Doji, Shooting Star
+- **Risk Management**: 1% take profit, 10% stop loss
+- **Smart Exits**: Progressive trailing stops, partial profit-taking
+- **BTC Correlation**: Alt coins only trade when BTC is stable
 
-### Binance API Key & Secret:
-Requires a Binance account and API keys stored in ```_secrets/__init__py```
+## 📊 Live Performance Tracking
 
-```
-    api_key = 'xxxxxxx'
-    secret_key= 'xxxxxxx'
-```
+Each bot maintains real-time P&L tracking with persistent state across restarts. The system tracks:
+- Individual position P&L per symbol
+- Cumulative realized profits/losses  
+- Pattern success rates and performance metrics
+- Separate tracking for dry run vs live trading modes
 
-### Install:
+## 🚀 Quick Start
 
-```
-    python3 -m venv venv
-    source ./venv/bin/activate
-    pip install -r requirements.txt
-    python3 cryptoBandit3.py
-```
-
-### Constants:
-```
-    usd_amount = 50  
-    buy_threshold = 0.01  # 1%
-    sell_threshold = 0.01 
-    stop_loss_threshold = 0.8  # 80% 
-    reset_initial_price = 0.01  
-    kline_interval = Client.KLINE_INTERVAL_1MINUTE
+### Setup
+```bash
+python3 -m venv venv
+source ./venv/bin/activate
+pip install -r requirements.txt
 ```
 
-### Loop Time
-Loop time is defined at the end of the script, in bellow example it runs every 10 minutes:
-
-```
-    for _ in range(60 * 10):
-        if shutdown:
-            break
-        time.sleep(1)
+### Configuration
+Create `_secrets/__init__.py`:
+```python
+api_key = 'your_binance_api_key'
+secret_key = 'your_binance_secret_key'
 ```
 
+### Running Bots
 
-### Switch to Hourly Candles
-
-1. Change the interval:
-
-```
-    kline_interval = Client.KLINE_INTERVAL_1HOUR
-```
-
-2. Adjust lookback window:
-In both **calculate_rsi** and ***calculate_emas***, replace ```"15 minutes ago UTC"``` and ```"300 minutes ago UTC"``` with:
-
-``` 
-    "400 hours ago UTC" 
+**Test Mode (No Real Money):**
+```bash
+# Set DRY_RUN = True in the bot file, then:
+python3 cBc-trader-pro.py
+python3 cBc-live-pro.py
 ```
 
+**Live Trading:**
+```bash
+# Set DRY_RUN = False (WARNING: Real money!)
+python3 cBc-trader-pro.py
+```
 
-## Example Run:
-<img width="641" alt="image" src="https://github.com/user-attachments/assets/93ddc8f6-015e-405d-adfc-d6910ac8e259">
+**P&L Analysis:**
+```bash
+python3 cBc-trader-pro.py --check-pnl  # View detailed P&L breakdown
+python3 cBc-trader-pro.py --reset-pnl  # Reset P&L tracking if needed
+```
+
+### Emergency Controls
+- **Manual Sell**: Type 'x' + ENTER → confirm with 'YES'
+- **Graceful Shutdown**: Ctrl+C
+
+## 📁 File Structure
+```
+├── Trading Bots (*.py)
+├── orders*/              # Position files per strategy (CSV format)
+├── outputs*/             # Trading logs per strategy
+├── trader_pro/           # Advanced P&L tracking (JSON format)
+├── trader_channel/       # Channel trader data
+├── status*.json          # P&L tracking files per bot
+└── _secrets/             # API credentials (git-ignored)
+```
+
+## ⚠️ Risk Warning
+- Start with DRY_RUN mode to understand the strategy
+- Test with small amounts first
+- Markets are volatile - losses are possible
+- Never invest more than you can afford to lose
+
+## 📈 Performance Tracking
+Each bot variant maintains separate P&L tracking:
+- Dry mode: `*_dry.json` files
+- Live mode: `*_live.json` files
+
+Position state persists across restarts - the bot will resume managing open positions.
+
+---
+*Built with Python, Binance API, and battle-tested trading strategies*

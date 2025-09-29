@@ -1,5 +1,12 @@
 #
 _secrets/
+orders_*
+outputs_*
+trader_*
+status_*
+orders
+outputs
+.claude
 
 # Python virtual environments
 venv/

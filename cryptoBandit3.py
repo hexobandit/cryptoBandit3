@@ -47,8 +47,8 @@ signal.signal(signal.SIGTERM, handle_exit)
 
 coins = {
     symbol: {
-        "filename_order_id": f"order_id_{symbol}.txt",
-        "filename_output": f"output_{symbol}.txt",
+        "filename_order_id": f"orders/order_id_{symbol}.txt",
+        "filename_output": f"outputs/output_{symbol}.txt",
         "buy_price": None,
         "sell_price": None,
         "bought_quantity": None,  # Track exact quantity bought
@@ -84,7 +84,7 @@ for symbol in symbols:
         overall_status[symbol] = 0
 
 # Constants
-usd_amount = 100  
+usd_amount = 30  
 buy_threshold = 0.01           # 0.01 = 1% + RSI < 30
 sell_threshold = 0.02           # 0.01 = 1%
 stop_loss_threshold = 0.8       # 0.80 = 80%
@@ -467,7 +467,7 @@ while not shutdown:
         status_color = "green" if status > 0 else "red"
         print(f"{symbol}: {colored(f'{status:.2f} USDT', status_color)}")
 
-    for _ in range(60 * 10):
+    for _ in range(60 * 1):
         if shutdown:
             break
         time.sleep(1)
