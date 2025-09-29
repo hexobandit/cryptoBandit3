@@ -4,149 +4,144 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an advanced cryptocurrency trading bot suite with multiple strategies: RSI/EMA technical analysis and candlestick pattern recognition. The system includes live trading bots, comprehensive backtesting, and interactive performance dashboards.
+Advanced cryptocurrency trading bot suite for Binance with multiple evolution stages: RSI/EMA strategies, candlestick pattern recognition, and professional-grade trend analysis. The codebase includes 7+ bot variants, comprehensive backtesting, and sophisticated P&L tracking with separate dry/live modes.
 
-## Trading Strategies
+## Bot Architecture Evolution
 
-### 1. RSI + EMA Strategy (`cryptoBandit3.py`)
-- **Logic**: `percent_change <= -buy_threshold and (rsi < 30) and (ema1 > ema200)`
-- **Files**: `orders/`, `outputs/`, `status.json`
-- **Timeframe**: 1-minute candles with 10-minute check intervals
+### Basic → Advanced → Professional
+1. **Basic**: `cryptoBandit3.py` (RSI/EMA), `cBc-live.py` (patterns)
+2. **Advanced**: `cBc-live-advanced.py` (graduated exits), `cBc-live-pro.py` (BTC correlation)
+3. **Professional**: `cBc-trader-pro.py` (trend lines, S/R levels, trailing stops)
 
-### 2. Candlestick Pattern Strategy
-- **Signal Detection**: `cryptoBanditCandles.py` (analysis only)
-- **Live Trading**: `cBc-live.py` (1-minute candles, real trades)
-- **Patterns**: Hammer, Bullish/Bearish Engulfing, Morning/Evening Star, Doji, Shooting Star
-- **Files**: `orders_candles_1m/`, `outputs_candles_1m/`, `status_candles_1m.json`
-- **Exit Logic**: 1% take profit OR 10% stop loss OR bearish patterns
-
-## Setup and Installation
-
-```bash
-# Environment setup
-python3 -m venv venv
-source ./venv/bin/activate
-pip install -r requirements.txt
-
-# API credentials in _secrets/__init__.py:
-api_key = 'your_binance_api_key'
-secret_key = 'your_binance_secret_key'
-```
+### Key Architectural Decisions
+- **State Persistence**: All positions stored in JSON/CSV files, survive restarts
+- **P&L Tracking**: Separate files for dry (`*_dry.json`) vs live (`*_live.json`) modes
+- **One Position Rule**: Maximum one open position per symbol
+- **Fee Integration**: All P&L calculations include 0.1% Binance trading fees
 
 ## Common Commands
 
 ```bash
-# RSI/EMA live trading
-python3 cryptoBandit3.py
+# Professional trader with DRY_RUN mode
+python3 cBc-trader-pro.py              # Check DRY_RUN setting in file
+python3 cBc-trader-pro.py --check-pnl  # View cumulative P&L breakdown
+python3 cBc-trader-pro.py --reset-pnl  # Reset P&L tracking
 
-# Candlestick pattern detection (signals only)
-python3 cryptoBanditCandles.py
+# Live trading bots
+python3 cBc-live-pro.py     # Enhanced with BTC correlation filter
+python3 cryptoBandit3.py    # Original RSI/EMA strategy
 
-# Candlestick live trading (real money)
-python3 cBc-live.py
-
-# Run comprehensive backtesting
-cd backtesting && python3 backtest_candles.py
-
-# Generate performance dashboards
-cd backtesting && python3 create_dashboard.py
+# Backtesting
+cd backtesting && python3 backtest_candles_optimized.py  # With caching
+cd backtesting && python3 create_dashboard.py            # Generate HTML reports
 ```
 
-## Backtesting Architecture
+## Critical Code Patterns
 
-### Core Backtesting (`backtesting/backtest_candles.py`)
-- **Historical Data**: 365 days across 9 timeframes (1m to 3d)
-- **Symbols**: 13 cryptocurrency pairs
-- **Strategy**: Long-only candlestick pattern recognition
-- **Risk Management**: 1% take profit, 10% stop loss
-- **Fee Calculation**: 0.1% per trade (0.2% total per round trip)
-
-### Exit Conditions (When Backtesting Sells)
-1. **Take Profit**: +1% price increase from entry
-2. **Stop Loss**: -10% price decrease from entry  
-3. **End of Data**: Close remaining positions at final candle
-
-### Dashboard Generation (`backtesting/create_dashboard.py`)
-- **Dependencies**: `pip install plotly seaborn matplotlib`
-- **Output**: 6 interactive HTML dashboards + comprehensive report
-- **Data Source**: `backtest_results.json`
-
-## File Structure
-
-```
-├── cryptoBandit3.py              # RSI/EMA strategy
-├── cryptoBanditCandles.py        # Pattern detection only
-├── cBc-live.py                   # Live candlestick trading
-├── backtesting/
-│   ├── backtest_candles.py       # Comprehensive backtesting
-│   ├── create_dashboard.py       # Dashboard generator
-│   └── *.html                    # Generated dashboards
-├── orders/                       # RSI strategy positions
-├── orders_candles_1m/            # Live trading positions
-├── _secrets/__init__.py          # API credentials (git-ignored)
-└── status*.json                  # P&L tracking files
-```
-
-## Pattern Detection Logic
-
-### Bullish Patterns (Buy Signals)
-- **Hammer**: `lower_shadow >= 2 * body AND upper_shadow <= body * 0.5`
-- **Bullish Engulfing**: Current green candle engulfs previous red candle
-- **Morning Star**: 3-candle bullish reversal pattern
-- **Doji**: `body <= range * 0.1` (indecision candle)
-
-### Bearish Patterns (Sell Signals)
-- **Shooting Star**: `upper_shadow >= 2 * body AND lower_shadow <= body * 0.5`
-- **Bearish Engulfing**: Current red candle engulfs previous green candle
-- **Evening Star**: 3-candle bearish reversal pattern
-
-## Live Trading Configuration
-
-### Candlestick Live Trading (`cBc-live.py`)
+### DRY_RUN Mode Implementation
 ```python
-usd_amount = 150                    # USDT per trade
-take_profit_percent = 0.01          # 1% profit target
-stop_loss_percent = 0.10            # 10% stop loss
-check_interval_minutes = 1          # Check every minute
-symbols = [13 cryptocurrency pairs] # All backtest-validated pairs
+# At file top (lines 20-26)
+DRY_RUN = True  # Set to False for LIVE trading with real money
+
+# In buy/sell functions
+if DRY_RUN:
+    # Simulate with current market price
+    ticker = client.get_symbol_ticker(symbol=symbol)
+    # Create mock order response
+else:
+    # Execute real Binance API call
+    order = client.order_market_buy(...)
 ```
 
-### Emergency Controls
-- **Manual Sell**: Type 'x' + ENTER → confirm with 'YES'
-- **Graceful Shutdown**: Ctrl+C
-- **State Persistence**: Positions survive bot restarts
+### P&L Tracking Architecture
 
-## Performance Metrics
+#### Simple Approach (`cBc-live-pro.py`)
+- Single cumulative counter: `overall_status[symbol] += profit_or_loss`
+- Stored in `status_pro_dry.json` or `status_pro_live.json`
 
-Recent backtesting results show:
-- **Total Profit**: $2,908.37 USDT (10,995 trades)
-- **Win Rate**: 66.8% across all timeframes
-- **Best Timeframe**: 3-day candles
-- **Fee-Adjusted Returns**: All P&L includes 0.2% trading fees
+#### Advanced Approach (`cBc-trader-pro.py`)
+- Separated tracking: `total_realized_pnl` (cumulative) vs `realized_profit` (current position)
+- Position files: `trader_pro/position_{symbol}_{mode}.json`
+- Session file: `trader_pro/session_pnl_{mode}.json`
 
-## Key Architecture Concepts
+### Position State Management
+```python
+# Standard position state structure
+{
+    "position_is_open": bool,
+    "entry_price": float,
+    "quantity": float,
+    "remaining_quantity": float,  # For partial exits
+    "entry_date": str,
+    "entry_pattern": str,          # Strategy that triggered entry
+    "stop_loss": float,
+    "take_profit_1": float,
+    "realized_profit": float,      # Current position realized P&L
+    "total_realized_pnl": float    # Cumulative all-time P&L
+}
+```
 
-### Position Management
-- **State Files**: CSV format with `buy_price,quantity,entry_date,pattern`
-- **One Position Per Symbol**: Maximum one open position per cryptocurrency
-- **Fee Integration**: All profit calculations include Binance trading fees
-- **Pattern Tracking**: Entry patterns recorded for performance analysis
+## Trading Strategy Parameters
 
-### Data Pipeline
-1. **Live Trading**: Binance WebSocket → Pattern Analysis → Trade Execution
-2. **Backtesting**: Historical Klines → Pattern Detection → Simulated Trading
-3. **Dashboards**: JSON Results → Plotly Visualizations → HTML Reports
+### Entry Strategies (cBc-trader-pro.py)
+1. **Support Bounce**: Price within 0.3% of support with ≥2 touches
+2. **Trend Breakout**: Break above trend line +0.2% with ≥3 touches  
+3. **RSI Oversold**: RSI < 25 with price stabilization
+4. **Volume Spike**: 2.5x average volume on green candle
+5. **Liquidity Hunt**: Stop hunt recovery pattern
 
-### Risk Management
-- Stop losses prevent catastrophic losses
-- Take profits lock in gains systematically  
-- Position limits prevent overexposure
-- Fee calculations ensure realistic backtesting
+### Exit Management
+- **TP1**: 1% profit → Sell 50%, move stop to breakeven
+- **Progressive Trail**: <1%: 0.8% | 1-2%: 0.5% | >2%: 0.3%
+- **BTC Filter**: No alt trades when BTC dumps >1.5%/hr or RSI<30
 
-## Development Notes
+## File Organization
 
-When modifying trading parameters:
-- Test changes in backtesting first
-- Update corresponding live trading constants
-- Verify fee calculations remain accurate
-- Regenerate dashboards to validate performance impact
+### Position & P&L Files by Bot
+```
+cBc-live.py         → orders_candles_1m/, status_candles_1m.json
+cBc-live-pro.py     → orders_pro/*_{dry|live}.txt, status_pro_{dry|live}.json
+cBc-trader-pro.py   → trader_pro/*_{dry|live}.json
+cryptoBandit3.py    → orders/, status.json
+```
+
+### Backtesting Data Flow
+1. **Data Cache**: `backtesting/data_cache/{symbol}_{timeframe}_data.json`
+2. **Results**: `backtesting/backtest_results_{strategy}.json`
+3. **Dashboards**: `backtesting/*.html` (6 interactive visualizations)
+
+## Emergency Procedures
+
+### Manual Position Management
+- **Emergency Sell**: Type 'x' + ENTER → confirm 'YES'
+- **Graceful Shutdown**: Ctrl+C (saves state before exit)
+- **Check Positions**: Review JSON/CSV files in respective orders directories
+
+### P&L Discrepancy Resolution
+If P&L seems incorrect:
+1. Check cumulative: `python3 {bot_name}.py --check-pnl`
+2. Compare position files vs trade records
+3. Reset if needed: `python3 {bot_name}.py --reset-pnl`
+
+## Development Workflow
+
+### Testing New Strategies
+1. Set `DRY_RUN = True` in bot file
+2. Run backtesting first: `cd backtesting && python3 backtest_candles_optimized.py`
+3. Monitor dry run for 24-48 hours
+4. Review P&L and win rates
+5. Only then set `DRY_RUN = False` for live trading
+
+### Modifying Entry/Exit Logic
+- Entry score threshold: `min_entry_score = 70` (0-100 scale)
+- Risk/Reward minimum: `min_rr_ratio = 2.0`
+- Partial exit percentages in `graduated_exits` or `TP1_SELL_PERCENT`
+- Always preserve fee calculations: `fees = (buy_price * qty + sell_price * qty) * 0.001`
+
+## Symbol Configuration
+All bots trade these 14 pairs:
+```python
+symbols = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "XRPUSDC", 
+          "DOGEUSDC", "SOLUSDC", "PNUTUSDC", "PEPEUSDC", "SHIBUSDC", 
+          "XLMUSDC", "LINKUSDC", "IOTAUSDC", "ENAUSDC"]
+```

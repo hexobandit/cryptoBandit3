@@ -25,19 +25,13 @@ Automated trading system for Binance with multiple strategies, professional risk
 - **Smart Exits**: Progressive trailing stops, partial profit-taking
 - **BTC Correlation**: Alt coins only trade when BTC is stable
 
-## 📊 Backtesting
+## 📊 Live Performance Tracking
 
-### Tools
-- **`backtesting/backtest_candles.py`** - Full candlestick pattern backtesting
-- **`backtesting/backtest_candles_optimized.py`** - Optimized version with caching
-- **`backtesting/create_dashboard.py`** - Generate interactive HTML reports
-- **`cryptoBacktest-EMA-RSI-exitPerPercent.py`** - RSI/EMA with percentage exits
-- **`cryptoBacktest-EMA-exitPerEmaCross.py`** - EMA crossover exits
-
-### Latest Results
-- **Best Timeframe**: 4-hour candles (72.8% win rate)
-- **Total Profit**: $362.56 USDT (355 trades)
-- **13 Pairs**: BTC, ETH, BNB, ADA, XRP, DOGE, SOL, PNUT, PEPE, SHIB, XLM, LINK, IOTA
+Each bot maintains real-time P&L tracking with persistent state across restarts. The system tracks:
+- Individual position P&L per symbol
+- Cumulative realized profits/losses  
+- Pattern success rates and performance metrics
+- Separate tracking for dry run vs live trading modes
 
 ## 🚀 Quick Start
 
@@ -70,10 +64,10 @@ python3 cBc-live-pro.py
 python3 cBc-trader-pro.py
 ```
 
-**Check P&L:**
+**P&L Analysis:**
 ```bash
-python3 cBc-trader-pro.py --check-pnl
-python3 cBc-trader-pro.py --reset-pnl  # Reset if needed
+python3 cBc-trader-pro.py --check-pnl  # View detailed P&L breakdown
+python3 cBc-trader-pro.py --reset-pnl  # Reset P&L tracking if needed
 ```
 
 ### Emergency Controls
@@ -83,11 +77,11 @@ python3 cBc-trader-pro.py --reset-pnl  # Reset if needed
 ## 📁 File Structure
 ```
 ├── Trading Bots (*.py)
-├── backtesting/          # Backtesting tools & results
-├── orders*/              # Position files per strategy
-├── outputs*/             # Trading logs
-├── trader_pro/           # Professional trader data
-├── status*.json          # P&L tracking files
+├── orders*/              # Position files per strategy (CSV format)
+├── outputs*/             # Trading logs per strategy
+├── trader_pro/           # Advanced P&L tracking (JSON format)
+├── trader_channel/       # Channel trader data
+├── status*.json          # P&L tracking files per bot
 └── _secrets/             # API credentials (git-ignored)
 ```
 
