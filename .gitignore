@@ -1,5 +1,9 @@
 #
 _secrets/
+orders_*
+outputs_*
+trader_*
+status_*
 
 # Python virtual environments
 venv/

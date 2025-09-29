@@ -35,8 +35,8 @@ signal.signal(signal.SIGTERM, handle_exit)
 
 coins = {
     symbol: {
-        "filename_order_id": f"orders_candles_1m/order_id_{symbol}.txt",
-        "filename_output": f"outputs_candles_1m/output_{symbol}.txt",
+        "filename_order_id": f"orders_candles-2_1m/order_id_{symbol}.txt",
+        "filename_output": f"outputs_candles-2_1m/output_{symbol}.txt",
         "buy_price": None,
         "sell_price": None,
         "bought_quantity": None,
@@ -48,8 +48,8 @@ coins = {
 }
 
 # Create directories if they don't exist
-os.makedirs("orders_candles_1m", exist_ok=True)
-os.makedirs("outputs_candles_1m", exist_ok=True)
+os.makedirs("orders_candles-2_1m", exist_ok=True)
+os.makedirs("outputs_candles-2_1m", exist_ok=True)
 
 # Restore state from files
 for symbol in symbols:
@@ -69,7 +69,7 @@ for symbol in symbols:
         continue
 
 # Load profit/loss tracking
-status_file = "status_candles_1m.json"
+status_file = "status_candles-2_1m.json"
 overall_status = {}
 if os.path.exists(status_file):
     with open(status_file, "r") as f:
@@ -81,11 +81,11 @@ for symbol in symbols:
         overall_status[symbol] = 0
 
 # Trading Constants - Based on successful backtest results
-usd_amount = 50  # USDT per trade
+usd_amount = 30  # USDT per trade
 kline_interval = Client.KLINE_INTERVAL_1MINUTE  
 candles_lookback = 20  # Number of candles to analyze for patterns
-take_profit_percent = 0.01  # 5% take profit (same as backtest)
-stop_loss_percent = 0.30   # 10% stop loss (same as backtest)
+take_profit_percent = 0.005  # 0.5% take profit 
+stop_loss_percent = 0.30   # 10% stop loss 
 check_interval_minutes = 1  # Check positions every minute for 1m candles
 trade_fee_percent = 0.001  # 0.1% fee per trade (buy + sell = 0.2% total)
 

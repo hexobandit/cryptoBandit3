@@ -13,6 +13,7 @@ import pandas as pd
 from binance.client import Client
 import tenacity
 import threading
+import numpy as np
 sys.path.append('../')
 from _secrets import api_key, secret_key
 
@@ -35,24 +36,27 @@ signal.signal(signal.SIGTERM, handle_exit)
 
 coins = {
     symbol: {
-        "filename_order_id": f"orders_candles_1m/order_id_{symbol}.txt",
-        "filename_output": f"outputs_candles_1m/output_{symbol}.txt",
+        "filename_order_id": f"orders_candles_ema_4h/order_id_{symbol}.txt",
+        "filename_output": f"outputs_candles_ema_4h/output_{symbol}.txt",
+        "filename_stop_loss_wait": f"orders_candles_ema_4h/stop_loss_wait_{symbol}.txt",
         "buy_price": None,
         "sell_price": None,
         "bought_quantity": None,
         "position_is_open": False,
         "entry_date": None,
         "entry_pattern": None,
+        "stop_loss_wait_until": None,
     }
     for symbol in symbols
 }
 
 # Create directories if they don't exist
-os.makedirs("orders_candles_1m", exist_ok=True)
-os.makedirs("outputs_candles_1m", exist_ok=True)
+os.makedirs("orders_candles_ema_4h", exist_ok=True)
+os.makedirs("outputs_candles_ema_4h", exist_ok=True)
 
 # Restore state from files
 for symbol in symbols:
+    # Restore position state
     try:
         with open(coins[symbol]["filename_order_id"], "r") as f:
             data_content = f.read().strip()
@@ -66,10 +70,19 @@ for symbol in symbols:
                     coins[symbol]["entry_date"] = entry_date
                     coins[symbol]["entry_pattern"] = pattern
     except FileNotFoundError:
-        continue
+        pass
+    
+    # Restore stop loss wait state
+    try:
+        with open(coins[symbol]["filename_stop_loss_wait"], "r") as f:
+            wait_until_str = f.read().strip()
+            if wait_until_str:
+                coins[symbol]["stop_loss_wait_until"] = datetime.datetime.fromisoformat(wait_until_str)
+    except FileNotFoundError:
+        pass
 
 # Load profit/loss tracking
-status_file = "status_candles_1m.json"
+status_file = "status_candles_ema_4h.json"
 overall_status = {}
 if os.path.exists(status_file):
     with open(status_file, "r") as f:
@@ -80,26 +93,115 @@ for symbol in symbols:
     if symbol not in overall_status:
         overall_status[symbol] = 0
 
+
 # Trading Constants - Based on successful backtest results
-usd_amount = 50  # USDT per trade
-kline_interval = Client.KLINE_INTERVAL_1MINUTE  
-candles_lookback = 20  # Number of candles to analyze for patterns
-take_profit_percent = 0.01  # 5% take profit (same as backtest)
-stop_loss_percent = 0.30   # 10% stop loss (same as backtest)
+usd_amount = 100  # USDT per trade
+kline_interval = Client.KLINE_INTERVAL_1MINUTE  # 1-minute for pattern detection
+kline_interval_4h = Client.KLINE_INTERVAL_4HOUR  # 4-hour for EMA trend
+candles_lookback_1m = 100  # Lookback for 1-minute pattern analysis
+candles_lookback_4h = 100  # Lookback for 4-hour EMA calculation (100 * 4h = 400 hours of data)
+take_profit_percent = 0.009  # 0.9% take profit (same as backtest)
+stop_loss_percent = 0.20   # 10% stop loss (same as backtest)
 check_interval_minutes = 1  # Check positions every minute for 1m candles
 trade_fee_percent = 0.001  # 0.1% fee per trade (buy + sell = 0.2% total)
+stop_loss_wait_hours = 16  # Wait 16 hours (3x 4h candles) after stop loss before allowing new entries
+
+# EMA configuration for 4-hour timeframe
+ema_short_period = 1   # EMA1 for 4h trend detection (very responsive)
+ema_long_period = 99   # EMA99 for 4h major trend
 
 # Set up the Binance API client
 client = Client(api_key, secret_key)
 
+# EMA Calculation Functions
+def calculate_ema(prices, period):
+    """Calculate Exponential Moving Average"""
+    if len(prices) < period:
+        return None
+    
+    prices = np.array(prices)
+    alpha = 2 / (period + 1)
+    ema = np.zeros(len(prices))
+    ema[0] = prices[0]
+    
+    for i in range(1, len(prices)):
+        ema[i] = alpha * prices[i] + (1 - alpha) * ema[i-1]
+    
+    return ema[-1]  # Return the latest EMA value
+
+def get_4h_ema_trend(symbol):
+    """Get EMA1 and EMA99 values from 4-hour candle data"""
+    try:
+        # Fetch 4-hour candles for EMA calculation
+        klines = client.get_historical_klines(
+            symbol, 
+            Client.KLINE_INTERVAL_4HOUR, 
+            f"{candles_lookback_4h * 4} hours ago UTC"
+        )
+        
+        if len(klines) < ema_long_period:
+            return None, None, False
+        
+        # Convert to dataframe for easier handling
+        df = pd.DataFrame(
+            klines,
+            columns=[
+                "timestamp", "open", "high", "low", "close", "volume",
+                "close_time", "quote_asset_volume", "number_of_trades",
+                "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore",
+            ],
+        )
+        
+        closes = df['close'].astype(float).tolist()
+        
+        # Calculate EMAs on 4-hour data
+        ema1 = calculate_ema(closes, ema_short_period)
+        ema99 = calculate_ema(closes, ema_long_period)
+        
+        if ema1 is None or ema99 is None:
+            return None, None, False
+        
+        # Determine if trend is bullish (EMA1 > EMA99)
+        is_bullish = ema1 > ema99
+        
+        return ema1, ema99, is_bullish
+        
+    except Exception as e:
+        print(f"Error fetching 4h EMA data for {symbol}: {e}")
+        return None, None, False
+
+def check_4h_ema_crossover_exit(symbol):
+    """Check if 4h EMA1 has crossed below EMA99 (bearish signal for exit)"""
+    try:
+        # Get current 4h EMA values
+        ema1, ema99, is_bullish = get_4h_ema_trend(symbol)
+        
+        if ema1 is None or ema99 is None:
+            return False, None, None
+        
+        # For exit, we check if EMA1 < EMA99 (bearish trend on 4h)
+        bearish_trend = ema1 < ema99
+        
+        return bearish_trend, ema1, ema99
+        
+    except Exception as e:
+        print(f"Error checking 4h EMA crossover for {symbol}: {e}")
+        return False, None, None
+
 # Candlestick Pattern Detection Functions (same as backtesting)
 @tenacity.retry(wait=tenacity.wait_fixed(10), stop=tenacity.stop_after_delay(300))
-def get_candle_data(symbol, interval, client, limit=20):
+def get_candle_data(symbol, interval, client, limit=100):
     """Fetch recent candlestick data for pattern analysis"""
     try:
-        klines = client.get_historical_klines(
-            symbol, interval, f"{limit} minutes ago UTC"  # Adjusted for 1m candles
-        )
+        if interval == Client.KLINE_INTERVAL_1MINUTE:
+            klines = client.get_historical_klines(
+                symbol, interval, f"{limit} minutes ago UTC"
+            )
+        else:  # 4-hour interval
+            klines = client.get_historical_klines(
+                symbol, interval, f"{limit * 4} hours ago UTC"
+            )
+            
         df = pd.DataFrame(
             klines,
             columns=[
@@ -314,6 +416,34 @@ def buy(symbol, usd_amount, pattern):
         print(f"{colored(f' ❌ BUY ERROR for {symbol}: {e}', 'red')}")
         return False
 
+def set_stop_loss_wait(symbol):
+    """Set a 16-hour wait period after stop loss"""
+    wait_until = datetime.datetime.now() + datetime.timedelta(hours=stop_loss_wait_hours)
+    coins[symbol]["stop_loss_wait_until"] = wait_until
+    
+    # Save to file for persistence
+    with open(coins[symbol]["filename_stop_loss_wait"], "w") as f:
+        f.write(wait_until.isoformat())
+    
+    print(f"  - Stop loss wait set until: {colored(wait_until.strftime('%Y-%m-%d %H:%M:%S'), 'yellow')}")
+
+def is_in_stop_loss_wait(symbol):
+    """Check if symbol is still in stop loss wait period"""
+    if coins[symbol]["stop_loss_wait_until"] is None:
+        return False
+    
+    current_time = datetime.datetime.now()
+    if current_time < coins[symbol]["stop_loss_wait_until"]:
+        return True
+    else:
+        # Wait period has expired, clear it
+        coins[symbol]["stop_loss_wait_until"] = None
+        try:
+            os.remove(coins[symbol]["filename_stop_loss_wait"])
+        except FileNotFoundError:
+            pass
+        return False
+
 def sell(symbol, reason="Manual"):
     """Execute a real sell order"""
     try:
@@ -378,6 +508,10 @@ def sell(symbol, reason="Manual"):
             with open(coins[symbol]["filename_order_id"], "w") as f:
                 f.write("")
             
+            # Set stop loss wait period if this was a stop loss
+            if reason == "Stop Loss":
+                set_stop_loss_wait(symbol)
+            
             return {
                 'sell_price': sell_price,
                 'profit_loss': profit_or_loss,
@@ -391,23 +525,35 @@ def sell(symbol, reason="Manual"):
         print(f"{colored(f' ❌ SELL ERROR for {symbol}: {e}', 'red')}")
         return None
 
-def check_exit_conditions(symbol, current_price):
-    """Check if position should be closed due to stop loss or take profit"""
+def check_enhanced_exit_conditions(symbol, current_price):
+    """Enhanced exit conditions with 4h EMA logic"""
     if not coins[symbol]["position_is_open"]:
         return False
     
     buy_price = coins[symbol]["buy_price"]
     price_change = (current_price - buy_price) / buy_price
     
-    # Check take profit
+    # Get 4h EMA trend status for exit logic
+    bearish_4h_trend, ema1_4h, ema99_4h = check_4h_ema_crossover_exit(symbol)
+    
+    # Enhanced Exit Logic:
+    # 1. If position is at a loss AND 4h EMA1 < EMA99 = SELL
+    if price_change < 0 and bearish_4h_trend:
+        print(f"{colored(f' ⚠️  4H EMA BEARISH EXIT for {symbol}', 'red')}")
+        print(f" - Price change: {price_change*100:.2f}%")
+        print(f" - 4H EMA1: {ema1_4h:.6f} < EMA99: {ema99_4h:.6f}")
+        sell(symbol, "4H EMA Bearish Exit")
+        return True
+    
+    # 2. Standard take profit
     if price_change >= take_profit_percent:
         print(f"{colored(f' 🎯 TAKE PROFIT TRIGGERED for {symbol}', 'green')}")
         print(f" - Price change: +{price_change*100:.2f}%")
         sell(symbol, "Take Profit")
         return True
     
-    # Check stop loss
-    elif price_change <= -stop_loss_percent:
+    # 3. Standard stop loss (unchanged)
+    if price_change <= -stop_loss_percent:
         print(f"{colored(f' 🛑 STOP LOSS TRIGGERED for {symbol}', 'red')}")
         print(f" - Price change: {price_change*100:.2f}%")
         sell(symbol, "Stop Loss")
@@ -458,15 +604,19 @@ try:
         if balance['asset'] == 'USDC':
             print("")
             print("=" * 70)
-            print("🚀 CryptoBandit Candlestick LIVE Trading Bot")
+            print("🚀 CryptoBandit Candlestick LIVE Trading Bot (4H EMA Trend)")
             print("=" * 70)
             print(f"Starting USDC balance:           {GREEN}{balance['free']}{END}")
-            print(f"Timeframe:                       {YELLOW}1 Minute Candles{END}")
-            print(f"Strategy:                        {CYAN}Candlestick Patterns{END}")
+            print(f"Pattern Detection:               {YELLOW}1 Minute Candles{END}")
+            print(f"Trend Confirmation:              {CYAN}4 Hour EMA1 > EMA99{END}")
+            print(f"Strategy:                        {CYAN}1m Patterns + 4h Trend Filter{END}")
             print(f"Symbols:                         {CYAN}{len(symbols)} pairs{END}")
             print(f"Trade Amount:                    {YELLOW}{usd_amount} USDT{END}")
+            print(f"Entry Requirement:               {GREEN}1m Pattern + 4h EMA1 > EMA99{END}")
             print(f"Take Profit:                     {GREEN}+{take_profit_percent*100}%{END}")
             print(f"Stop Loss:                       {RED}-{stop_loss_percent*100}%{END}")
+            print(f"Stop Loss Wait Period:           {YELLOW}{stop_loss_wait_hours} hours (3x 4h candles){END}")
+            print(f"4H EMA Exit:                     {YELLOW}Sell losses if 4h EMA1 < EMA99{END}")
             print(f"Trading Fees:                    {YELLOW}0.1% per trade (0.2% total){END}")
             print("=" * 70)
             print("")
@@ -482,7 +632,7 @@ except Exception as e:
 threading.Thread(target=listen_for_manual_sell, daemon=True).start()
 
 print("=" * 70)
-print(colored("🎯 LIVE TRADING ACTIVE", "green", attrs=["bold"]))
+print(colored("🎯 4H EMA TREND LIVE TRADING ACTIVE", "green", attrs=["bold"]))
 print("-" * 70)
 print("Commands:")
 print(colored(" - Type 'x' + ENTER", "yellow", attrs=["bold"]) + " → Emergency sell all positions")
@@ -495,12 +645,21 @@ while not shutdown:
     
     for symbol, data in coins.items():
         try:
-            # Get current price
+            # Get current price and 1-minute candle data for pattern detection
             ticker = client.get_symbol_ticker(symbol=symbol)
             current_price = float(ticker['price'])
+            df_1m = get_candle_data(symbol, kline_interval, client, candles_lookback_1m)
             
             print(f"\n[{symbol}]")
             print(f" - Current Price: {colored(current_price, 'cyan')} USDT")
+            
+            # Get 4-hour EMA trend
+            ema1_4h, ema99_4h, is_4h_bullish = get_4h_ema_trend(symbol)
+            if ema1_4h is not None and ema99_4h is not None:
+                trend_4h = "Bullish" if is_4h_bullish else "Bearish"
+                trend_color = 'green' if is_4h_bullish else 'red'
+                print(f" - 4H EMA1: {ema1_4h:.6f} | EMA99: {ema99_4h:.6f}")
+                print(f" - 4H Trend: {colored(trend_4h, trend_color, attrs=['bold'])}")
             
             # Check exit conditions first if we have a position
             if data["position_is_open"]:
@@ -512,30 +671,46 @@ while not shutdown:
                 print(f" - P&L: {colored(f'{price_change*100:+.2f}%', 'green' if price_change > 0 else 'red')}")
                 print(f" - Entry Pattern: {colored(entry_pattern, 'yellow')}")
                 
-                # Check exit conditions
-                if check_exit_conditions(symbol, current_price):
+                # Check enhanced exit conditions (includes 4h EMA bearish exit)
+                if check_enhanced_exit_conditions(symbol, current_price):
                     continue  # Position was closed, move to next symbol
             
             else:
-                # Look for entry signals
-                df = get_candle_data(symbol, kline_interval, client, candles_lookback)
-                buy_signals, sell_signals, _ = analyze_candlestick_patterns(df)
-                
-                if buy_signals:
-                    pattern_text = ', '.join(buy_signals)
-                    print(f"{colored(' 🟢 BUY SIGNAL DETECTED', 'green')} - {colored(pattern_text, 'yellow')}")
-                    
-                    # Execute buy order
-                    success = buy(symbol, usd_amount, pattern_text)
-                    if success:
-                        print(f"{colored(' 🎯 POSITION OPENED', 'green')} for {symbol}")
+                # Check if we're in stop loss wait period
+                if is_in_stop_loss_wait(symbol):
+                    remaining_time = coins[symbol]["stop_loss_wait_until"] - datetime.datetime.now()
+                    hours_left = remaining_time.total_seconds() / 3600
+                    print(f" - Status: {colored(f'Stop Loss Wait ({hours_left:.1f}h remaining)', 'yellow')}")
                 else:
-                    print(f" - Status: {colored('No signals - Waiting', 'grey')}")
+                    # Look for entry signals on 1-minute patterns
+                    buy_signals, sell_signals, _ = analyze_candlestick_patterns(df_1m)
+                    
+                    if buy_signals:
+                        pattern_text = ', '.join(buy_signals)
+                        print(f"{colored(' 🟢 1M PATTERN DETECTED', 'green')} - {colored(pattern_text, 'yellow')}")
+                        
+                        # Check 4H EMA1 > EMA99 condition before buying (4h bullish trend required)
+                        if ema1_4h is not None and ema99_4h is not None and is_4h_bullish:
+                            print(f"{colored(' ✅ 4H TREND CONFIRMED', 'green')} - EMA1 > EMA99 (Bullish)")
+                            
+                            # Execute buy order
+                            success = buy(symbol, usd_amount, pattern_text)
+                            if success:
+                                print(f"{colored(' 🎯 POSITION OPENED', 'green')} for {symbol}")
+                        else:
+                            print(f"{colored(' ❌ 4H TREND REJECTED', 'red')} - EMA1 ≤ EMA99 (Not bullish)")
+                            if ema1_4h is not None and ema99_4h is not None:
+                                print(f" - 4H EMA1: {ema1_4h:.6f} ≤ EMA99: {ema99_4h:.6f}")
+                    else:
+                        print(f" - Status: {colored('No signals - Waiting', 'grey')}")
             
             # Log to output file
             with open(data["filename_output"], "a") as f:
                 status = "OPEN" if data["position_is_open"] else "CLOSED"
-                f.write(f"{datetime.datetime.now()}: {symbol} - {current_price:.4f} USDT - {status}\n")
+                ema_info = ""
+                if ema1_4h is not None and ema99_4h is not None:
+                    ema_info = f" | 4H EMA1: {ema1_4h:.6f} | 4H EMA99: {ema99_4h:.6f}"
+                f.write(f"{datetime.datetime.now()}: {symbol} - {current_price:.4f} USDT - {status}{ema_info}\n")
             
         except Exception as e:
             print(f"{colored(f' - Error processing {symbol}: {e}', 'red')}")
