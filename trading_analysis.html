@@ -1,0 +1,1283 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Performance Analysis - LIVE Mode</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .timestamp {
+            color: rgba(255,255,255,0.9);
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+        
+        .stat-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .positive {
+            color: #10b981;
+        }
+        
+        .negative {
+            color: #ef4444;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        canvas {
+            max-height: 400px;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #f3f4f6;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        tr:hover {
+            background: #f9fafb;
+        }
+        
+        .filter-container {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn:hover {
+            background: #f3f4f6;
+        }
+        
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .symbol-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .symbol-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .symbol-name {
+            font-weight: bold;
+            color: #4b5563;
+            margin-bottom: 8px;
+        }
+        
+        .symbol-pnl {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .symbol-winrate {
+            font-size: 0.85em;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        
+        .entry-type-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .entry-type-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .entry-type-title {
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .entry-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .entry-stat-label {
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+        
+        .entry-stat-value {
+            font-weight: bold;
+            color: #111827;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            transition: width 0.5s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .symbol-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Trading Performance Analysis</h1>
+        <div class="timestamp">Report Generated: 2025-10-14 10:04:07 | Mode: LIVE</div>
+        
+        <!-- Overall Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Trades</div>
+                <div class="stat-value">188</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value negative">41.5%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total P&L</div>
+                <div class="stat-value positive">$16.66</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Profit Factor</div>
+                <div class="stat-value negative">0.53</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Average Win</div>
+                <div class="stat-value positive">$1.01</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Average Loss</div>
+                <div class="stat-value negative">$-1.36</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Max Win</div>
+                <div class="stat-value positive">$5.51</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Max Loss</div>
+                <div class="stat-value negative">$-4.60</div>
+            </div>
+        </div>
+        
+        <!-- P&L Curve Chart -->
+        <div class="chart-container">
+            <div class="chart-title">📈 Cumulative P&L Timeline</div>
+            <canvas id="pnlChart"></canvas>
+        </div>
+        
+        <!-- Performance by Symbol -->
+        <div class="chart-container">
+            <div class="chart-title">💰 Performance by Symbol</div>
+            <div class="symbol-grid">
+                
+        <div class="symbol-card">
+            <div class="symbol-name">SOLUSDC</div>
+            <div class="symbol-pnl positive">$12.74</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #10b981">58.3%</span></div>
+            <div class="symbol-winrate">7/12 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">DOGEUSDC</div>
+            <div class="symbol-pnl positive">$12.21</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">42.9%</span></div>
+            <div class="symbol-winrate">6/14 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">ENAUSDC</div>
+            <div class="symbol-pnl positive">$10.18</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">41.2%</span></div>
+            <div class="symbol-winrate">7/17 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">SHIBUSDC</div>
+            <div class="symbol-pnl positive">$4.30</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">45.5%</span></div>
+            <div class="symbol-winrate">5/11 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">IOTAUSDC</div>
+            <div class="symbol-pnl positive">$3.28</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">47.4%</span></div>
+            <div class="symbol-winrate">9/19 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">ADAUSDC</div>
+            <div class="symbol-pnl positive">$1.50</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #10b981">54.5%</span></div>
+            <div class="symbol-winrate">6/11 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">PEPEUSDC</div>
+            <div class="symbol-pnl positive">$0.77</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #10b981">50.0%</span></div>
+            <div class="symbol-winrate">7/14 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">LINKUSDC</div>
+            <div class="symbol-pnl positive">$0.15</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">46.2%</span></div>
+            <div class="symbol-winrate">6/13 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">XLMUSDC</div>
+            <div class="symbol-pnl negative">$-2.31</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">38.9%</span></div>
+            <div class="symbol-winrate">7/18 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">XRPUSDC</div>
+            <div class="symbol-pnl negative">$-3.93</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">33.3%</span></div>
+            <div class="symbol-winrate">3/9 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">BNBUSDC</div>
+            <div class="symbol-pnl negative">$-3.99</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">33.3%</span></div>
+            <div class="symbol-winrate">2/6 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">BTCUSDC</div>
+            <div class="symbol-pnl negative">$-5.43</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">41.2%</span></div>
+            <div class="symbol-winrate">7/17 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">PNUTUSDC</div>
+            <div class="symbol-pnl negative">$-5.66</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">28.6%</span></div>
+            <div class="symbol-winrate">4/14 trades won</div>
+        </div>
+        
+        <div class="symbol-card">
+            <div class="symbol-name">ETHUSDC</div>
+            <div class="symbol-pnl negative">$-7.16</div>
+            <div class="symbol-winrate">Win Rate: <span style="color: #ef4444">15.4%</span></div>
+            <div class="symbol-winrate">2/13 trades won</div>
+        </div>
+        
+            </div>
+        </div>
+        
+        <!-- Entry Type Analysis -->
+        <div class="chart-container">
+            <div class="chart-title">🎯 Entry Type Performance</div>
+            <div class="entry-type-grid">
+                
+        <div class="entry-type-card">
+            <div class="entry-type-title">Volume Spike</div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Total Trades:</span>
+                <span class="entry-stat-value">119</span>
+            </div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Win Rate:</span>
+                <span class="entry-stat-value negative">37.0%</span>
+            </div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Total P&L:</span>
+                <span class="entry-stat-value positive">$14.97</span>
+            </div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Avg P&L:</span>
+                <span class="entry-stat-value positive">$0.13</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 36.97478991596639%; background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%)"></div>
+            </div>
+        </div>
+        
+        <div class="entry-type-card">
+            <div class="entry-type-title">Support/Resistance</div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Total Trades:</span>
+                <span class="entry-stat-value">35</span>
+            </div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Win Rate:</span>
+                <span class="entry-stat-value negative">45.7%</span>
+            </div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Total P&L:</span>
+                <span class="entry-stat-value positive">$1.28</span>
+            </div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Avg P&L:</span>
+                <span class="entry-stat-value positive">$0.04</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 45.714285714285715%; background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%)"></div>
+            </div>
+        </div>
+        
+        <div class="entry-type-card">
+            <div class="entry-type-title">Whale/Stop Hunt</div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Total Trades:</span>
+                <span class="entry-stat-value">34</span>
+            </div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Win Rate:</span>
+                <span class="entry-stat-value positive">52.9%</span>
+            </div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Total P&L:</span>
+                <span class="entry-stat-value positive">$0.41</span>
+            </div>
+            <div class="entry-stats">
+                <span class="entry-stat-label">Avg P&L:</span>
+                <span class="entry-stat-value positive">$0.01</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 52.94117647058824%; background: linear-gradient(90deg, #10b981 0%, #059669 100%)"></div>
+            </div>
+        </div>
+        
+            </div>
+        </div>
+        
+        <!-- Win/Loss Distribution -->
+        <div class="chart-container">
+            <div class="chart-title">📊 Win/Loss Distribution</div>
+            <canvas id="winLossChart"></canvas>
+        </div>
+        
+        <!-- Exit Type Analysis -->
+        <div class="chart-container">
+            <div class="chart-title">🚪 Exit Type Analysis</div>
+            <canvas id="exitTypeChart"></canvas>
+        </div>
+        
+        <!-- Trade Details Table -->
+        <div class="table-container">
+            <div class="chart-title">📋 Trade History</div>
+            <div class="filter-container">
+                <button class="filter-btn active" onclick="filterTrades('all')">All Trades</button>
+                <button class="filter-btn" onclick="filterTrades('wins')">Winners</button>
+                <button class="filter-btn" onclick="filterTrades('losses')">Losers</button>
+                <button class="filter-btn" onclick="sortTable('timestamp')">Sort by Date</button>
+                <button class="filter-btn" onclick="sortTable('profit_loss')">Sort by P&L</button>
+                <button class="filter-btn" onclick="sortTable('symbol')">Sort by Symbol</button>
+            </div>
+            <table id="tradesTable">
+                <thead>
+                    <tr>
+                        <th>Date/Time</th>
+                        <th>Symbol</th>
+                        <th>Entry</th>
+                        <th>Exit</th>
+                        <th>Quantity</th>
+                        <th>P&L</th>
+                        <th>%</th>
+                        <th>Entry Reason</th>
+                        <th>Exit Type</th>
+                    </tr>
+                </thead>
+                <tbody id="tradesTableBody">
+                    
+        <tr>
+            <td>2025-10-14 09:45:32</td>
+            <td>BTCUSDC</td>
+            <td>114562.330000</td>
+            <td>111636.990000</td>
+            <td>0.00</td>
+            <td class="negative">-2.74</td>
+            <td class="negative">-2.55%</td>
+            <td>Volume spike 2.5x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-13 13:15:41</td>
+            <td>DOGEUSDC</td>
+            <td>0.187130</td>
+            <td>0.208160</td>
+            <td>267.00</td>
+            <td class="positive">+ 5.51</td>
+            <td class="positive">11.24%</td>
+            <td>Bounce from swing_high support</td>
+            <td>Trailing Stop (11.87% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-13 12:45:03</td>
+            <td>SOLUSDC</td>
+            <td>180.200000</td>
+            <td>195.600000</td>
+            <td>0.28</td>
+            <td class="positive">+ 4.16</td>
+            <td class="positive">8.55%</td>
+            <td>Volume spike 3.2x average</td>
+            <td>Trailing Stop (8.98% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-11 23:00:38</td>
+            <td>BTCUSDC</td>
+            <td>112108.990000</td>
+            <td>110411.010000</td>
+            <td>0.00</td>
+            <td class="negative">-1.71</td>
+            <td class="negative">-1.51%</td>
+            <td>Bounce from swing_low support </td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-11 21:00:43</td>
+            <td>PEPEUSDC</td>
+            <td>0.000007</td>
+            <td>0.000007</td>
+            <td>14044943.00</td>
+            <td class="negative">-2.02</td>
+            <td class="negative">-1.83%</td>
+            <td>Bounce from swing_high support</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-11 17:45:43</td>
+            <td>PNUTUSDC</td>
+            <td>0.141800</td>
+            <td>0.143600</td>
+            <td>352.50</td>
+            <td class="positive">+ 0.53</td>
+            <td class="positive">1.27%</td>
+            <td>Stop hunt recovery - whale acc</td>
+            <td>Trailing Stop (2.09% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-11 16:42:11</td>
+            <td>SHIBUSDC</td>
+            <td>0.000010</td>
+            <td>0.000010</td>
+            <td>9680542.00</td>
+            <td class="negative">-1.17</td>
+            <td class="negative">-0.97%</td>
+            <td>Stop hunt recovery - whale acc</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-11 04:48:03</td>
+            <td>BTCUSDC</td>
+            <td>117583.020000</td>
+            <td>113151.776471</td>
+            <td>0.00</td>
+            <td class="negative">-3.96</td>
+            <td class="negative">-3.77%</td>
+            <td>Bounce from previous_day_low s</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-10 20:19:21</td>
+            <td>XRPUSDC</td>
+            <td>2.829000</td>
+            <td>2.717500</td>
+            <td>35.30</td>
+            <td class="negative">-4.13</td>
+            <td class="negative">-3.94%</td>
+            <td>Volume spike 3.6x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-10 17:15:39</td>
+            <td>BNBUSDC</td>
+            <td>1258.280000</td>
+            <td>1234.350000</td>
+            <td>0.08</td>
+            <td class="negative">-2.09</td>
+            <td class="negative">-1.90%</td>
+            <td>Bounce from swing_low support </td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-10 17:00:51</td>
+            <td>IOTAUSDC</td>
+            <td>0.179700</td>
+            <td>0.178200</td>
+            <td>278.00</td>
+            <td class="negative">-0.52</td>
+            <td class="negative">-0.83%</td>
+            <td>Volume spike 6.0x average</td>
+            <td>Trailing Stop (0.00% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-10 17:00:47</td>
+            <td>XLMUSDC</td>
+            <td>0.380300</td>
+            <td>0.379115</td>
+            <td>131.00</td>
+            <td class="negative">-0.25</td>
+            <td class="negative">-0.31%</td>
+            <td>Volume spike 4.9x average</td>
+            <td>Trailing Stop (0.00% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-10 17:00:44</td>
+            <td>PEPEUSDC</td>
+            <td>0.000009</td>
+            <td>0.000009</td>
+            <td>10695187.00</td>
+            <td class="negative">-2.66</td>
+            <td class="negative">-2.46%</td>
+            <td>Volume spike 6.1x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-10 17:00:38</td>
+            <td>ADAUSDC</td>
+            <td>0.820800</td>
+            <td>0.805200</td>
+            <td>121.80</td>
+            <td class="negative">-2.10</td>
+            <td class="negative">-1.90%</td>
+            <td>Volume spike 4.7x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-10 17:00:36</td>
+            <td>ETHUSDC</td>
+            <td>4370.410000</td>
+            <td>4279.010000</td>
+            <td>0.02</td>
+            <td class="negative">-2.28</td>
+            <td class="negative">-2.09%</td>
+            <td>Volume spike 4.2x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-10 16:30:40</td>
+            <td>PNUTUSDC</td>
+            <td>0.206400</td>
+            <td>0.204056</td>
+            <td>484.40</td>
+            <td class="negative">-1.33</td>
+            <td class="negative">-1.14%</td>
+            <td>Volume spike 4.2x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-10 06:00:56</td>
+            <td>ENAUSDC</td>
+            <td>0.552400</td>
+            <td>0.565100</td>
+            <td>90.51</td>
+            <td class="positive">+ 1.05</td>
+            <td class="positive">2.30%</td>
+            <td>Bounce from swing_high support</td>
+            <td>Trailing Stop (2.64% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-09 10:30:32</td>
+            <td>BTCUSDC</td>
+            <td>122813.000000</td>
+            <td>121343.990000</td>
+            <td>0.00</td>
+            <td class="negative">-1.39</td>
+            <td class="negative">-1.20%</td>
+            <td>Volume spike 4.7x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-09 10:27:22</td>
+            <td>ETHUSDC</td>
+            <td>4464.460000</td>
+            <td>4360.450000</td>
+            <td>0.02</td>
+            <td class="negative">-2.52</td>
+            <td class="negative">-2.33%</td>
+            <td>Bounce from swing_low support </td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-09 06:20:05</td>
+            <td>XLMUSDC</td>
+            <td>0.385300</td>
+            <td>0.382500</td>
+            <td>129.00</td>
+            <td class="negative">-0.46</td>
+            <td class="negative">-0.73%</td>
+            <td>Volume spike 3.7x average</td>
+            <td>Trailing Stop (0.00% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-09 06:19:55</td>
+            <td>XRPUSDC</td>
+            <td>2.879700</td>
+            <td>2.843600</td>
+            <td>17.30</td>
+            <td class="negative">-0.72</td>
+            <td class="negative">-1.25%</td>
+            <td>Bounce from swing_high support</td>
+            <td>Trailing Stop (0.00% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-08 21:15:49</td>
+            <td>IOTAUSDC</td>
+            <td>0.185700</td>
+            <td>0.187990</td>
+            <td>269.00</td>
+            <td class="positive">+ 0.52</td>
+            <td class="positive">1.23%</td>
+            <td>Bounce from swing_high support</td>
+            <td>Trailing Stop (1.48% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-08 20:15:37</td>
+            <td>DOGEUSDC</td>
+            <td>0.248670</td>
+            <td>0.259740</td>
+            <td>201.00</td>
+            <td class="positive">+ 2.12</td>
+            <td class="positive">4.45%</td>
+            <td>Bounce from swing_low support </td>
+            <td>Trailing Stop (4.40% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-08 19:45:41</td>
+            <td>SHIBUSDC</td>
+            <td>0.000012</td>
+            <td>0.000012</td>
+            <td>4111842.00</td>
+            <td class="positive">+ 0.89</td>
+            <td class="positive">1.97%</td>
+            <td>Volume spike 3.6x average</td>
+            <td>Trailing Stop (2.00% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-08 19:45:40</td>
+            <td>PEPEUSDC</td>
+            <td>0.000009</td>
+            <td>0.000010</td>
+            <td>5376344.00</td>
+            <td class="positive">+ 1.62</td>
+            <td class="positive">3.44%</td>
+            <td>Bounce from swing_low support </td>
+            <td>Trailing Stop (3.88% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-08 15:45:34</td>
+            <td>BTCUSDC</td>
+            <td>121212.030000</td>
+            <td>121790.800000</td>
+            <td>0.00</td>
+            <td class="positive">+ 0.14</td>
+            <td class="positive">0.48%</td>
+            <td>Bounce from previous_day_low s</td>
+            <td>Trailing Stop (1.08% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-08 05:30:57</td>
+            <td>IOTAUSDC</td>
+            <td>0.185600</td>
+            <td>0.183284</td>
+            <td>538.00</td>
+            <td class="negative">-1.44</td>
+            <td class="negative">-1.25%</td>
+            <td>Bounce from swing_high support</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-08 05:30:49</td>
+            <td>PNUTUSDC</td>
+            <td>0.211100</td>
+            <td>0.208300</td>
+            <td>473.70</td>
+            <td class="negative">-1.53</td>
+            <td class="negative">-1.33%</td>
+            <td>Volume spike 3.9x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-08 05:30:42</td>
+            <td>ADAUSDC</td>
+            <td>0.830200</td>
+            <td>0.816400</td>
+            <td>120.40</td>
+            <td class="negative">-1.86</td>
+            <td class="negative">-1.66%</td>
+            <td>Volume spike 2.6x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-07 17:15:36</td>
+            <td>BTCUSDC</td>
+            <td>123921.110000</td>
+            <td>121999.980000</td>
+            <td>0.00</td>
+            <td class="negative">-1.73</td>
+            <td class="negative">-1.55%</td>
+            <td>Volume spike 2.7x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-07 08:30:37</td>
+            <td>BTCUSDC</td>
+            <td>125796.990000</td>
+            <td>124005.840000</td>
+            <td>0.00</td>
+            <td class="negative">-1.61</td>
+            <td class="negative">-1.42%</td>
+            <td>Volume spike 3.7x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 23:00:47</td>
+            <td>SOLUSDC</td>
+            <td>233.950000</td>
+            <td>233.810000</td>
+            <td>0.21</td>
+            <td class="negative">-0.13</td>
+            <td class="negative">-0.06%</td>
+            <td>Volume spike 2.6x average</td>
+            <td>Trailing Stop (0.00% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 20:30:52</td>
+            <td>ENAUSDC</td>
+            <td>0.590200</td>
+            <td>0.602500</td>
+            <td>84.71</td>
+            <td class="positive">+ 0.94</td>
+            <td class="positive">2.08%</td>
+            <td>Bounce from swing_high support</td>
+            <td>Trailing Stop (2.27% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 19:45:34</td>
+            <td>BTCUSDC</td>
+            <td>123056.680000</td>
+            <td>125233.980000</td>
+            <td>0.00</td>
+            <td class="positive">+ 0.79</td>
+            <td class="positive">1.77%</td>
+            <td>Volume spike 2.5x average</td>
+            <td>Trailing Stop (1.92% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 18:15:48</td>
+            <td>SHIBUSDC</td>
+            <td>0.000013</td>
+            <td>0.000013</td>
+            <td>3965107.00</td>
+            <td class="positive">+ 0.97</td>
+            <td class="positive">2.14%</td>
+            <td>Volume spike 4.3x average</td>
+            <td>Trailing Stop (2.31% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 17:00:47</td>
+            <td>LINKUSDC</td>
+            <td>21.930000</td>
+            <td>22.610000</td>
+            <td>2.28</td>
+            <td class="positive">+ 1.45</td>
+            <td class="positive">3.10%</td>
+            <td>Bounce from swing_low support </td>
+            <td>Trailing Stop (3.43% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 17:00:38</td>
+            <td>ADAUSDC</td>
+            <td>0.839900</td>
+            <td>0.864200</td>
+            <td>59.50</td>
+            <td class="positive">+ 1.34</td>
+            <td class="positive">2.89%</td>
+            <td>Bounce from swing_high support</td>
+            <td>Trailing Stop (3.01% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 17:00:36</td>
+            <td>ETHUSDC</td>
+            <td>4522.360000</td>
+            <td>4645.750000</td>
+            <td>0.01</td>
+            <td class="positive">+ 1.26</td>
+            <td class="positive">2.73%</td>
+            <td>Volume spike 2.5x average</td>
+            <td>Trailing Stop (2.90% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 16:30:42</td>
+            <td>PEPEUSDC</td>
+            <td>0.000010</td>
+            <td>0.000010</td>
+            <td>5045409.00</td>
+            <td class="positive">+ 1.11</td>
+            <td class="positive">2.42%</td>
+            <td>Volume spike 3.7x average</td>
+            <td>Trailing Stop (2.62% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 11:45:45</td>
+            <td>SOLUSDC</td>
+            <td>230.650000</td>
+            <td>233.190000</td>
+            <td>0.22</td>
+            <td class="positive">+ 0.45</td>
+            <td class="positive">1.10%</td>
+            <td>Volume spike 3.7x average</td>
+            <td>Trailing Stop (1.13% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 07:00:58</td>
+            <td>IOTAUSDC</td>
+            <td>0.190500</td>
+            <td>0.187649</td>
+            <td>524.00</td>
+            <td class="negative">-1.69</td>
+            <td class="negative">-1.50%</td>
+            <td>Volume spike 5.4x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 04:00:53</td>
+            <td>XLMUSDC</td>
+            <td>0.393000</td>
+            <td>0.401200</td>
+            <td>127.00</td>
+            <td class="positive">+ 0.94</td>
+            <td class="positive">2.09%</td>
+            <td>Bounce from swing_low support </td>
+            <td>Trailing Stop (2.29% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-06 03:00:53</td>
+            <td>LINKUSDC</td>
+            <td>21.970000</td>
+            <td>21.560000</td>
+            <td>4.55</td>
+            <td class="negative">-2.06</td>
+            <td class="negative">-1.87%</td>
+            <td>Bounce from swing_low support </td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-05 21:15:38</td>
+            <td>ETHUSDC</td>
+            <td>4553.670000</td>
+            <td>4500.090000</td>
+            <td>0.02</td>
+            <td class="negative">-1.37</td>
+            <td class="negative">-1.18%</td>
+            <td>Volume spike 5.2x average</td>
+            <td>Stop Loss</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-05 11:30:56</td>
+            <td>LINKUSDC</td>
+            <td>22.420000</td>
+            <td>22.710000</td>
+            <td>2.23</td>
+            <td class="positive">+ 0.55</td>
+            <td class="positive">1.29%</td>
+            <td>Volume spike 4.1x average</td>
+            <td>Trailing Stop (1.70% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-05 11:15:49</td>
+            <td>XLMUSDC</td>
+            <td>0.401000</td>
+            <td>0.405811</td>
+            <td>125.00</td>
+            <td class="positive">+ 0.50</td>
+            <td class="positive">1.20%</td>
+            <td>Volume spike 5.1x average</td>
+            <td>Trailing Stop (1.41% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-05 10:45:47</td>
+            <td>PEPEUSDC</td>
+            <td>0.000010</td>
+            <td>0.000010</td>
+            <td>5025125.00</td>
+            <td class="positive">+ 0.70</td>
+            <td class="positive">1.61%</td>
+            <td>Volume spike 4.1x average</td>
+            <td>Trailing Stop (1.80% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-05 10:15:53</td>
+            <td>IOTAUSDC</td>
+            <td>0.189700</td>
+            <td>0.193900</td>
+            <td>263.00</td>
+            <td class="positive">+ 1.00</td>
+            <td class="positive">2.21%</td>
+            <td>Volume spike 2.7x average</td>
+            <td>Trailing Stop (2.22% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-05 09:30:37</td>
+            <td>BTCUSDC</td>
+            <td>121989.020000</td>
+            <td>124824.030000</td>
+            <td>0.00</td>
+            <td class="positive">+ 1.06</td>
+            <td class="positive">2.32%</td>
+            <td>Extreme oversold bounce (RSI: </td>
+            <td>Trailing Stop (2.46% profit)</td>
+        </tr>
+        
+        <tr>
+            <td>2025-10-05 06:15:55</td>
+            <td>ENAUSDC</td>
+            <td>0.587100</td>
+            <td>0.609200</td>
+            <td>85.16</td>
+            <td class="positive">+ 1.78</td>
+            <td class="positive">3.76%</td>
+            <td>Volume spike 2.5x average</td>
+            <td>Trailing Stop (4.20% profit)</td>
+        </tr>
+        
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        // P&L Timeline Chart
+        const pnlCtx = document.getElementById('pnlChart').getContext('2d');
+        const pnlData = [{"timestamp": "2025-09-23T16:35:49.545677", "symbol": "PEPEUSDC", "pnl": -1.4270214198799882, "cumulative_pnl": -0.9632452748020626, "entry_price": 9.77e-06, "exit_price": 9.65e-06, "reason": "Stop Loss"}, {"timestamp": "2025-09-23T16:35:53.281095", "symbol": "ENAUSDC", "pnl": -1.3007598959999866, "cumulative_pnl": -1.8002290257241236, "entry_price": 0.6171, "exit_price": 0.6103000000000001, "reason": "Stop Loss"}, {"timestamp": "2025-09-23T23:15:59.291645", "symbol": "BTCUSDC", "pnl": -1.1279739768000077, "cumulative_pnl": -2.464426857446206, "entry_price": 113097.63, "exit_price": 112040.98, "reason": "Stop Loss"}, {"timestamp": "2025-09-23T23:16:03.205040", "symbol": "ADAUSDC", "pnl": -1.0293029999999899, "cumulative_pnl": -3.02995371236827, "entry_price": 0.8184, "exit_price": 0.8116000000000001, "reason": "Stop Loss"}, {"timestamp": "2025-09-23T23:16:08.714387", "symbol": "PNUTUSDC", "pnl": -0.07626125000000261, "cumulative_pnl": -2.6424388172903472, "entry_price": 0.2105, "exit_price": 0.21059999999999998, "reason": "Trailing Stop (0.63% profit)"}, {"timestamp": "2025-09-23T23:16:13.361279", "symbol": "XLMUSDC", "pnl": -1.4137470000000012, "cumulative_pnl": -3.5924096722124226, "entry_price": 0.3703, "exit_price": 0.3658, "reason": "Stop Loss"}, {"timestamp": "2025-09-23T23:16:14.344726", "symbol": "LINKUSDC", "pnl": -1.472470999999989, "cumulative_pnl": -4.601104527134486, "entry_price": 21.95, "exit_price": 21.67, "reason": "Stop Loss"}, {"timestamp": "2025-09-23T23:16:16.217964", "symbol": "IOTAUSDC", "pnl": -1.2553115000000101, "cumulative_pnl": -5.392639882056571, "entry_price": 0.1723, "exit_price": 0.17047844827586206, "reason": "Stop Loss"}, {"timestamp": "2025-09-23T23:16:17.865895", "symbol": "ENAUSDC", "pnl": -1.6859050249999994, "cumulative_pnl": -6.6147687619786435, "entry_price": 0.6118, "exit_price": 0.6027, "reason": "Stop Loss"}, {"timestamp": "2025-09-24T16:00:38.711604", "symbol": "ETHUSDC", "pnl": -0.7921102910000095, "cumulative_pnl": -6.943102907900728, "entry_price": 4178.75, "exit_price": 4153.94, "reason": "Stop Loss"}, {"timestamp": "2025-09-24T16:00:46.932077", "symbol": "ENAUSDC", "pnl": -1.0874107999999933, "cumulative_pnl": -7.566737562822795, "entry_price": 0.6079, "exit_price": 0.6025, "reason": "Stop Loss"}, {"timestamp": "2025-09-24T18:00:43.872114", "symbol": "DOGEUSDC", "pnl": -1.3641789600000056, "cumulative_pnl": -8.467140377744876, "entry_price": 0.24819, "exit_price": 0.24528999999999998, "reason": "Stop Loss"}, {"timestamp": "2025-09-24T19:30:42.483280", "symbol": "XRPUSDC", "pnl": 0.831726910000001, "cumulative_pnl": -7.171637322666949, "entry_price": 2.8847, "exit_price": 2.9386, "reason": "Trailing Stop (1.94% profit)"}, {"timestamp": "2025-09-24T20:45:50.657046", "symbol": "IOTAUSDC", "pnl": -1.1236320000000104, "cumulative_pnl": -7.831493177589033, "entry_price": 0.1728, "exit_price": 0.1712, "reason": "Stop Loss"}, {"timestamp": "2025-09-24T21:00:42.136129", "symbol": "XLMUSDC", "pnl": 1.1951279999999995, "cumulative_pnl": -6.172589032511108, "entry_price": 0.3688, "exit_price": 0.3784, "reason": "Trailing Stop (2.73% profit)"}, {"timestamp": "2025-09-24T21:15:49.146153", "symbol": "PEPEUSDC", "pnl": -0.7144181135699952, "cumulative_pnl": -6.4232310010031775, "entry_price": 9.71e-06, "exit_price": 9.66e-06, "reason": "Stop Loss"}, {"timestamp": "2025-09-24T21:30:47.468888", "symbol": "LINKUSDC", "pnl": 0.2910190000000039, "cumulative_pnl": -5.668435855925248, "entry_price": 21.65, "exit_price": 21.82, "reason": "Trailing Stop (0.79% profit)"}, {"timestamp": "2025-09-24T21:45:34.990103", "symbol": "ETHUSDC", "pnl": -0.8278492040000122, "cumulative_pnl": -6.032508914847334, "entry_price": 4185.01, "exit_price": 4158.57, "reason": "Stop Loss"}, {"timestamp": "2025-09-24T22:30:43.374453", "symbol": "SOLUSDC", "pnl": -0.19148505000000346, "cumulative_pnl": -5.760217819769414, "entry_price": 212.61, "exit_price": 212.22, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-09-25T09:07:33.147070", "symbol": "ADAUSDC", "pnl": -4.156830899999996, "cumulative_pnl": -9.453272574691484, "entry_price": 0.8226, "exit_price": 0.79, "reason": "Stop Loss"}, {"timestamp": "2025-09-25T09:07:35.435491", "symbol": "XRPUSDC", "pnl": -4.603804800000007, "cumulative_pnl": -13.593301229613564, "entry_price": 2.9746, "exit_price": 2.8434, "reason": "Stop Loss"}, {"timestamp": "2025-09-25T09:07:44.159911", "symbol": "SHIBUSDC", "pnl": -3.05895306354, "cumulative_pnl": -16.18847814807564, "entry_price": 1.223e-05, "exit_price": 1.188e-05, "reason": "Stop Loss"}, {"timestamp": "2025-09-25T09:15:33.857198", "symbol": "BTCUSDC", "pnl": -1.4598196800000127, "cumulative_pnl": -17.184521682997726, "entry_price": 113160.0, "exit_price": 111725.99999999999, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T09:00:47.133215", "symbol": "DOGEUSDC", "pnl": -0.14067235000000505, "cumulative_pnl": -16.861417887919806, "entry_price": 0.23224, "exit_price": 0.23204999999999998, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-09-29T09:00:50.793753", "symbol": "PNUTUSDC", "pnl": -1.170198880000001, "cumulative_pnl": -17.567840622841878, "entry_price": 0.2059, "exit_price": 0.2039, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T11:15:39.883988", "symbol": "BNBUSDC", "pnl": 0.5276504999999977, "cumulative_pnl": -16.576413977763956, "entry_price": 992.22, "exit_price": 1004.77, "reason": "Trailing Stop (1.46% profit)"}, {"timestamp": "2025-09-29T11:15:43.998862", "symbol": "XRPUSDC", "pnl": -1.0173662400000014, "cumulative_pnl": -17.130004072686035, "entry_price": 2.8992, "exit_price": 2.8754, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T12:45:45.630415", "symbol": "SOLUSDC", "pnl": -1.2909384899999963, "cumulative_pnl": -17.957166417608104, "entry_price": 209.33, "exit_price": 207.04000000000002, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T12:45:50.470547", "symbol": "SHIBUSDC", "pnl": -1.1211231287499912, "cumulative_pnl": -18.614513401280167, "entry_price": 1.193e-05, "exit_price": 1.182e-05, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T14:45:47.892958", "symbol": "XLMUSDC", "pnl": -1.305638999999998, "cumulative_pnl": -19.45637625620224, "entry_price": 0.3699, "exit_price": 0.3658, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T15:00:51.138201", "symbol": "IOTAUSDC", "pnl": -1.647832800000008, "cumulative_pnl": -20.64043291112433, "entry_price": 0.1653, "exit_price": 0.1629, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T16:30:36.302311", "symbol": "ADAUSDC", "pnl": 1.0472706999999994, "cumulative_pnl": -19.1293860660464, "entry_price": 0.7924, "exit_price": 0.8106, "reason": "Trailing Stop (2.42% profit)"}, {"timestamp": "2025-09-29T17:15:41.103068", "symbol": "SOLUSDC", "pnl": 1.2847485600000033, "cumulative_pnl": -17.38086136096847, "entry_price": 206.06, "exit_price": 211.7648559670782, "reason": "Trailing Stop (2.85% profit)"}, {"timestamp": "2025-09-29T17:15:42.553548", "symbol": "PNUTUSDC", "pnl": 1.1767925399999983, "cumulative_pnl": -15.740292675890544, "entry_price": 0.1995, "exit_price": 0.2046, "reason": "Trailing Stop (3.15% profit)"}, {"timestamp": "2025-09-29T17:15:43.754982", "symbol": "PEPEUSDC", "pnl": 0.9906113021999987, "cumulative_pnl": -14.28590522861262, "entry_price": 9.16e-06, "exit_price": 9.36e-06, "reason": "Trailing Stop (2.53% profit)"}, {"timestamp": "2025-09-29T17:15:45.682622", "symbol": "XLMUSDC", "pnl": 0.5341005000000051, "cumulative_pnl": -13.28802858353469, "entry_price": 0.3695, "exit_price": 0.37420000000000003, "reason": "Trailing Stop (1.30% profit)"}, {"timestamp": "2025-09-29T17:15:46.743593", "symbol": "LINKUSDC", "pnl": 1.0603616999999965, "cumulative_pnl": -11.763890738456766, "entry_price": 21.05, "exit_price": 21.54, "reason": "Trailing Stop (2.49% profit)"}, {"timestamp": "2025-09-29T17:15:47.775781", "symbol": "IOTAUSDC", "pnl": 0.9394199999999958, "cumulative_pnl": -10.360694593378849, "entry_price": 0.1633, "exit_price": 0.1667, "reason": "Trailing Stop (2.57% profit)"}, {"timestamp": "2025-09-29T17:45:50.745227", "symbol": "ENAUSDC", "pnl": -0.239476344000004, "cumulative_pnl": -10.136394792300926, "entry_price": 0.573, "exit_price": 0.5713999999999999, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-09-29T18:30:45.034148", "symbol": "ENAUSDC", "pnl": -0.9550462949999949, "cumulative_pnl": -10.627664942222996, "entry_price": 0.5689, "exit_price": 0.5646, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T18:45:36.196617", "symbol": "BNBUSDC", "pnl": -1.263557720000011, "cumulative_pnl": -11.427446517145079, "entry_price": 1017.26, "exit_price": 1006.3902040816325, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T19:00:45.370147", "symbol": "PNUTUSDC", "pnl": -2.1568346799999882, "cumulative_pnl": -13.120505052067148, "entry_price": 0.2042, "exit_price": 0.20020000000000002, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T19:00:48.815949", "symbol": "XLMUSDC", "pnl": -1.291276799999993, "cumulative_pnl": -13.948005706989214, "entry_price": 0.3741, "exit_price": 0.37000786516853934, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T19:15:40.044712", "symbol": "DOGEUSDC", "pnl": -1.227945249999998, "cumulative_pnl": -14.712174811911286, "entry_price": 0.23408, "exit_price": 0.23167000000000001, "reason": "Stop Loss"}, {"timestamp": "2025-09-29T22:30:46.814789", "symbol": "PEPEUSDC", "pnl": 0.8199891516600003, "cumulative_pnl": -13.428409515173357, "entry_price": 9.23e-06, "exit_price": 9.4e-06, "reason": "Trailing Stop (1.86% profit)"}, {"timestamp": "2025-09-29T22:30:49.669423", "symbol": "ENAUSDC", "pnl": 0.7838732070000018, "cumulative_pnl": -12.180760163095432, "entry_price": 0.5595, "exit_price": 0.5694, "reason": "Trailing Stop (1.96% profit)"}, {"timestamp": "2025-09-29T23:15:43.930900", "symbol": "PNUTUSDC", "pnl": 1.249199479999997, "cumulative_pnl": -10.467784538017504, "entry_price": 0.1999, "exit_price": 0.20529999999999998, "reason": "Trailing Stop (2.89% profit)"}, {"timestamp": "2025-09-30T00:00:38.865690", "symbol": "ADAUSDC", "pnl": 0.7768655399999937, "cumulative_pnl": -9.22714285293959, "entry_price": 0.7979, "exit_price": 0.8119, "reason": "Trailing Stop (1.80% profit)"}, {"timestamp": "2025-09-30T00:15:44.895294", "symbol": "SOLUSDC", "pnl": 1.0938960000000042, "cumulative_pnl": -7.669470707861656, "entry_price": 208.56, "exit_price": 213.54000000000002, "reason": "Trailing Stop (2.64% profit)"}, {"timestamp": "2025-09-30T00:15:49.853562", "symbol": "LINKUSDC", "pnl": 1.0690992000000081, "cumulative_pnl": -6.136595362783723, "entry_price": 21.31, "exit_price": 21.810000000000002, "reason": "Trailing Stop (2.46% profit)"}, {"timestamp": "2025-09-30T00:30:54.873097", "symbol": "IOTAUSDC", "pnl": 0.258635000000002, "cumulative_pnl": -5.414184217705799, "entry_price": 0.1669, "exit_price": 0.1681, "reason": "Trailing Stop (0.69% profit)"}, {"timestamp": "2025-09-30T00:45:38.334134", "symbol": "BTCUSDC", "pnl": 1.1523771720000013, "cumulative_pnl": -3.798030900627868, "entry_price": 111337.77, "exit_price": 114124.07, "reason": "Trailing Stop (2.51% profit)"}, {"timestamp": "2025-09-30T01:30:51.993045", "symbol": "SHIBUSDC", "pnl": 0.36249998201999556, "cumulative_pnl": -2.9717547735299483, "entry_price": 1.188e-05, "exit_price": 1.1989999999999999e-05, "reason": "Trailing Stop (1.01% profit)"}, {"timestamp": "2025-09-30T06:00:52.701492", "symbol": "XLMUSDC", "pnl": -1.324241599999995, "cumulative_pnl": -3.832220228452016, "entry_price": 0.3727, "exit_price": 0.3685, "reason": "Stop Loss"}, {"timestamp": "2025-09-30T07:15:57.094714", "symbol": "ENAUSDC", "pnl": -2.162084427000012, "cumulative_pnl": -5.530528510374101, "entry_price": 0.5603, "exit_price": 0.5492950411833921, "reason": "Stop Loss"}, {"timestamp": "2025-09-30T09:45:34.092297", "symbol": "BTCUSDC", "pnl": -0.9512881860000071, "cumulative_pnl": -6.018040551296188, "entry_price": 114572.11, "exit_price": 113706.95436781608, "reason": "Stop Loss"}, {"timestamp": "2025-09-30T11:00:49.697134", "symbol": "PEPEUSDC", "pnl": -1.1709503164799906, "cumulative_pnl": -6.725214722698247, "entry_price": 9.26e-06, "exit_price": 9.17e-06, "reason": "Stop Loss"}, {"timestamp": "2025-09-30T11:15:35.588821", "symbol": "ETHUSDC", "pnl": -0.20123851999999914, "cumulative_pnl": -6.462677097620322, "entry_price": 4169.69, "exit_price": 4161.11, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-09-30T11:45:35.679526", "symbol": "BTCUSDC", "pnl": -0.8711034645000011, "cumulative_pnl": -6.870004417042399, "entry_price": 113786.41, "exit_price": 113011.94, "reason": "Stop Loss"}, {"timestamp": "2025-09-30T16:30:39.824598", "symbol": "XRPUSDC", "pnl": -1.130637849999998, "cumulative_pnl": -7.536866121964469, "entry_price": 2.8616, "exit_price": 2.8349, "reason": "Stop Loss"}, {"timestamp": "2025-09-30T17:15:46.877148", "symbol": "XLMUSDC", "pnl": -1.240123999999992, "cumulative_pnl": -8.31321397688654, "entry_price": 0.3649, "exit_price": 0.36110000000000003, "reason": "Stop Loss"}, {"timestamp": "2025-10-01T09:59:55.301915", "symbol": "XLMUSDC", "pnl": 0.5523720999999976, "cumulative_pnl": -7.297065731808619, "entry_price": 0.3607, "exit_price": 0.3654, "reason": "Trailing Stop (1.80% profit)"}, {"timestamp": "2025-10-01T11:15:47.356333", "symbol": "PEPEUSDC", "pnl": 1.5095595345199937, "cumulative_pnl": -5.323730052210696, "entry_price": 9.31e-06, "exit_price": 9.61e-06, "reason": "Trailing Stop (3.34% profit)"}, {"timestamp": "2025-10-01T11:45:48.894637", "symbol": "ENAUSDC", "pnl": 3.6806212880000038, "cumulative_pnl": -1.179332619132765, "entry_price": 0.5536, "exit_price": 0.5955, "reason": "Trailing Stop (7.82% profit)"}, {"timestamp": "2025-10-01T12:15:39.259295", "symbol": "ETHUSDC", "pnl": 1.3307657999999989, "cumulative_pnl": 0.6152093259451625, "entry_price": 4176.74, "exit_price": 4296.11, "reason": "Trailing Stop (2.93% profit)"}, {"timestamp": "2025-10-01T12:15:49.275874", "symbol": "SHIBUSDC", "pnl": 1.36788419199, "cumulative_pnl": 2.4468696630130857, "entry_price": 1.191e-05, "exit_price": 1.226e-05, "reason": "Trailing Stop (3.38% profit)"}, {"timestamp": "2025-10-01T12:15:52.651065", "symbol": "IOTAUSDC", "pnl": 1.8481499999999935, "cumulative_pnl": 4.758795808091001, "entry_price": 0.1665, "exit_price": 0.173, "reason": "Trailing Stop (4.49% profit)"}, {"timestamp": "2025-10-01T14:45:37.009792", "symbol": "BTCUSDC", "pnl": 1.136799569900006, "cumulative_pnl": 6.359371523068937, "entry_price": 113648.09, "exit_price": 116521.98000000001, "reason": "Trailing Stop (2.57% profit)"}, {"timestamp": "2025-10-01T19:00:42.173954", "symbol": "ADAUSDC", "pnl": 0.28550843999999764, "cumulative_pnl": 7.108656108146857, "entry_price": 0.8294, "exit_price": 0.8358, "reason": "Trailing Stop (1.29% profit)"}, {"timestamp": "2025-10-01T19:15:48.153171", "symbol": "LINKUSDC", "pnl": 0.3272174999999949, "cumulative_pnl": 7.899649753224782, "entry_price": 22.19, "exit_price": 22.38, "reason": "Trailing Stop (0.89% profit)"}, {"timestamp": "2025-10-01T22:15:41.628639", "symbol": "PNUTUSDC", "pnl": 0.9400118000000035, "cumulative_pnl": 9.303437698302705, "entry_price": 0.2113, "exit_price": 0.2157, "reason": "Trailing Stop (2.11% profit)"}, {"timestamp": "2025-10-01T22:15:47.458350", "symbol": "ENAUSDC", "pnl": -1.1414822949999914, "cumulative_pnl": 8.625731548380646, "entry_price": 0.5836, "exit_price": 0.5781000000000001, "reason": "Stop Loss"}, {"timestamp": "2025-10-01T23:45:44.843920", "symbol": "DOGEUSDC", "pnl": 0.17480285999999778, "cumulative_pnl": 9.264310553458564, "entry_price": 0.24381, "exit_price": 0.24515165853658535, "reason": "Trailing Stop (0.83% profit)"}, {"timestamp": "2025-10-02T02:45:44.765371", "symbol": "XRPUSDC", "pnl": 0.3186909899999957, "cumulative_pnl": 10.04677768853649, "entry_price": 2.9193, "exit_price": 2.9437999999999995, "reason": "Trailing Stop (0.87% profit)"}, {"timestamp": "2025-10-02T02:45:49.106955", "symbol": "XLMUSDC", "pnl": 0.5470778999999991, "cumulative_pnl": 11.05763173361441, "entry_price": 0.3936, "exit_price": 0.3987, "reason": "Trailing Stop (2.33% profit)"}, {"timestamp": "2025-10-02T03:00:38.804292", "symbol": "BTCUSDC", "pnl": 0.4295868431000007, "cumulative_pnl": 11.950994721792334, "entry_price": 117278.0, "exit_price": 118512.83, "reason": "Trailing Stop (1.15% profit)"}, {"timestamp": "2025-10-02T03:00:47.239869", "symbol": "DOGEUSDC", "pnl": -1.5271365899999887, "cumulative_pnl": 10.887634276870276, "entry_price": 0.25037, "exit_price": 0.24704, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T04:30:47.278242", "symbol": "SOLUSDC", "pnl": 0.43770821000000104, "cumulative_pnl": 11.789118631948199, "entry_price": 219.7, "exit_price": 222.07, "reason": "Trailing Stop (1.12% profit)"}, {"timestamp": "2025-10-02T05:45:53.778902", "symbol": "IOTAUSDC", "pnl": 1.0592972999999979, "cumulative_pnl": 13.312192077026126, "entry_price": 0.1764, "exit_price": 0.1805, "reason": "Trailing Stop (2.41% profit)"}, {"timestamp": "2025-10-02T06:00:52.055893", "symbol": "PEPEUSDC", "pnl": 0.5612524692700023, "cumulative_pnl": 14.33722069137405, "entry_price": 9.82e-06, "exit_price": 9.95e-06, "reason": "Trailing Stop (1.43% profit)"}, {"timestamp": "2025-10-02T06:00:57.714545", "symbol": "ENAUSDC", "pnl": 1.3996261309999984, "cumulative_pnl": 16.200622967451977, "entry_price": 0.5762, "exit_price": 0.5935, "reason": "Trailing Stop (3.66% profit)"}, {"timestamp": "2025-10-02T06:45:50.302241", "symbol": "SHIBUSDC", "pnl": 0.42366934805999495, "cumulative_pnl": 17.088068460589902, "entry_price": 1.24e-05, "exit_price": 1.2529999999999999e-05, "reason": "Trailing Stop (1.19% profit)"}, {"timestamp": "2025-10-02T10:15:36.768755", "symbol": "ETHUSDC", "pnl": -0.9600574919999959, "cumulative_pnl": 16.591787113667827, "entry_price": 4407.06, "exit_price": 4373.360000000001, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T11:00:44.094121", "symbol": "PEPEUSDC", "pnl": -1.3810836388799888, "cumulative_pnl": 15.674479619865764, "entry_price": 1.015e-05, "exit_price": 1.003e-05, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T11:45:51.755350", "symbol": "LINKUSDC", "pnl": -0.12225540000000346, "cumulative_pnl": 16.01600036494369, "entry_price": 22.54, "exit_price": 22.529999999999998, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-10-02T12:30:43.961564", "symbol": "ADAUSDC", "pnl": -1.6021572, "cumulative_pnl": 14.877619310021611, "entry_price": 0.8619, "exit_price": 0.8498, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T15:15:40.940261", "symbol": "BNBUSDC", "pnl": 1.198360799999998, "cumulative_pnl": 16.53975625509953, "entry_price": 1028.55, "exit_price": 1055.6, "reason": "Trailing Stop (2.91% profit)"}, {"timestamp": "2025-10-02T16:45:44.123693", "symbol": "DOGEUSDC", "pnl": -1.6648085999999944, "cumulative_pnl": 15.338723800177466, "entry_price": 0.25625, "exit_price": 0.25249, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T16:45:52.344225", "symbol": "LINKUSDC", "pnl": -1.135471399999988, "cumulative_pnl": 14.667028545255409, "entry_price": 22.4, "exit_price": 22.19, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T17:00:38.014127", "symbol": "ETHUSDC", "pnl": -1.2369798119999909, "cumulative_pnl": 13.89382487833334, "entry_price": 4419.78, "exit_price": 4373.84, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T17:00:45.077421", "symbol": "XRPUSDC", "pnl": -1.2739428000000002, "cumulative_pnl": 13.08365822341127, "entry_price": 2.9871, "exit_price": 2.9549, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T17:00:54.112303", "symbol": "XLMUSDC", "pnl": -1.537104000000004, "cumulative_pnl": 12.010330368489186, "entry_price": 0.4017, "exit_price": 0.3963, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T17:00:57.371045", "symbol": "IOTAUSDC", "pnl": -1.6284400000000103, "cumulative_pnl": 10.845666513567103, "entry_price": 0.1817, "exit_price": 0.17909999999999998, "reason": "Stop Loss"}, {"timestamp": "2025-10-02T21:30:45.155090", "symbol": "SOLUSDC", "pnl": 1.3971841000000003, "cumulative_pnl": 12.70662675864503, "entry_price": 225.56, "exit_price": 232.34, "reason": "Trailing Stop (3.22% profit)"}, {"timestamp": "2025-10-03T04:00:52.806657", "symbol": "IOTAUSDC", "pnl": -1.3953600000000042, "cumulative_pnl": 11.775042903722955, "entry_price": 0.1836, "exit_price": 0.1814, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T06:45:44.745754", "symbol": "SOLUSDC", "pnl": -1.099870870000006, "cumulative_pnl": 11.13894817880086, "entry_price": 233.96, "exit_price": 231.85, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T06:45:49.131236", "symbol": "LINKUSDC", "pnl": -1.162276799999995, "cumulative_pnl": 10.440447523878795, "entry_price": 22.79, "exit_price": 22.57, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T07:45:40.716055", "symbol": "DOGEUSDC", "pnl": -0.2788444799999944, "cumulative_pnl": 10.625379188956735, "entry_price": 0.2583, "exit_price": 0.25737088082901555, "reason": "Trailing Stop (0.13% profit)"}, {"timestamp": "2025-10-03T09:00:47.980246", "symbol": "XLMUSDC", "pnl": -1.1867362000000008, "cumulative_pnl": 9.902419134034652, "entry_price": 0.4043, "exit_price": 0.4003, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T09:00:50.472820", "symbol": "IOTAUSDC", "pnl": 0.6141850000000052, "cumulative_pnl": 10.980380279112588, "entry_price": 0.182, "exit_price": 0.18460000000000001, "reason": "Trailing Stop (1.73% profit)"}, {"timestamp": "2025-10-03T09:30:36.654564", "symbol": "ETHUSDC", "pnl": -1.1227137179999929, "cumulative_pnl": 10.321442706190524, "entry_price": 4502.15, "exit_price": 4460.54, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T09:30:44.018175", "symbol": "PNUTUSDC", "pnl": -1.1477978999999958, "cumulative_pnl": 9.637420951268446, "entry_price": 0.2213, "exit_price": 0.2192, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T09:30:51.773795", "symbol": "ENAUSDC", "pnl": -1.0968566309999916, "cumulative_pnl": 9.004340465346381, "entry_price": 0.6126, "exit_price": 0.6071000000000001, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T15:15:47.154335", "symbol": "PNUTUSDC", "pnl": -1.3768802800000086, "cumulative_pnl": 8.091236330424302, "entry_price": 0.2207, "exit_price": 0.2181, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T15:15:51.693578", "symbol": "XLMUSDC", "pnl": -1.1867362000000008, "cumulative_pnl": 7.368276275502218, "entry_price": 0.4043, "exit_price": 0.4003, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T16:15:37.597867", "symbol": "ETHUSDC", "pnl": -0.9949342920000025, "cumulative_pnl": 6.837118128580144, "entry_price": 4486.37, "exit_price": 4450.49, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T16:15:39.133913", "symbol": "BNBUSDC", "pnl": -1.1955072799999935, "cumulative_pnl": 6.10538699365808, "entry_price": 1133.32, "exit_price": 1121.99, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T19:00:35.354622", "symbol": "BTCUSDC", "pnl": 1.2048416619999955, "cumulative_pnl": 7.774004800736009, "entry_price": 119170.82, "exit_price": 122350.98, "reason": "Trailing Stop (3.58% profit)"}, {"timestamp": "2025-10-03T19:00:40.960882", "symbol": "ADAUSDC", "pnl": 0.9051587999999995, "cumulative_pnl": 9.142939745813926, "entry_price": 0.855, "exit_price": 0.8722, "reason": "Trailing Stop (3.92% profit)"}, {"timestamp": "2025-10-03T19:00:45.700741", "symbol": "DOGEUSDC", "pnl": 0.5658088799999919, "cumulative_pnl": 10.172524770891847, "entry_price": 0.25491, "exit_price": 0.25831, "reason": "Trailing Stop (3.62% profit)"}, {"timestamp": "2025-10-03T19:00:47.650167", "symbol": "SOLUSDC", "pnl": 0.5192620800000021, "cumulative_pnl": 11.155562995969781, "entry_price": 229.17, "exit_price": 232.01311926605504, "reason": "Trailing Stop (2.96% profit)"}, {"timestamp": "2025-10-03T19:00:50.867871", "symbol": "PEPEUSDC", "pnl": -2.521006747639994, "cumulative_pnl": 9.098332393407702, "entry_price": 1.033e-05, "exit_price": 1.009e-05, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T19:00:52.850299", "symbol": "SHIBUSDC", "pnl": -0.37684083731999735, "cumulative_pnl": 9.185267701165635, "entry_price": 1.263e-05, "exit_price": 1.256e-05, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-10-03T19:00:54.059999", "symbol": "XLMUSDC", "pnl": 0.19748239999999473, "cumulative_pnl": 9.846526246243556, "entry_price": 0.4025, "exit_price": 0.4049, "reason": "Trailing Stop (2.40% profit)"}, {"timestamp": "2025-10-03T19:00:55.085324", "symbol": "LINKUSDC", "pnl": -0.6518837, "cumulative_pnl": 9.658418691321472, "entry_price": 22.61, "exit_price": 22.36, "reason": "Trailing Stop (1.48% profit)"}, {"timestamp": "2025-10-03T19:00:56.995009", "symbol": "IOTAUSDC", "pnl": 0.5225150999999991, "cumulative_pnl": 10.644709936399401, "entry_price": 0.1848, "exit_price": 0.1871, "reason": "Trailing Stop (3.15% profit)"}, {"timestamp": "2025-10-03T19:00:58.264238", "symbol": "ENAUSDC", "pnl": -0.45315079199999686, "cumulative_pnl": 10.655335289477335, "entry_price": 0.6138, "exit_price": 0.6094603977412227, "reason": "Trailing Stop (2.95% profit)"}, {"timestamp": "2025-10-03T19:30:38.151615", "symbol": "ETHUSDC", "pnl": -1.342253189999995, "cumulative_pnl": 9.776858244555264, "entry_price": 4551.17, "exit_price": 4498.93, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T21:45:53.204068", "symbol": "IOTAUSDC", "pnl": -0.9881962000000006, "cumulative_pnl": 9.252438189633189, "entry_price": 0.1901, "exit_price": 0.1886, "reason": "Stop Loss"}, {"timestamp": "2025-10-03T22:00:44.901632", "symbol": "DOGEUSDC", "pnl": 0.26255377999999663, "cumulative_pnl": 9.978768114711116, "entry_price": 0.25738, "exit_price": 0.25925, "reason": "Trailing Stop (0.94% profit)"}, {"timestamp": "2025-10-04T01:15:55.765208", "symbol": "ENAUSDC", "pnl": 0.40609869999999854, "cumulative_pnl": 10.848642959789032, "entry_price": 0.6119, "exit_price": 0.6181, "reason": "Trailing Stop (1.29% profit)"}, {"timestamp": "2025-10-04T02:45:49.544515", "symbol": "PNUTUSDC", "pnl": -1.1750950800000033, "cumulative_pnl": 10.137324024866956, "entry_price": 0.2253, "exit_price": 0.2231, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T03:15:46.085080", "symbol": "DOGEUSDC", "pnl": -1.122559900000005, "cumulative_pnl": 9.47854026994488, "entry_price": 0.25907, "exit_price": 0.25667, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T03:15:51.809472", "symbol": "SHIBUSDC", "pnl": -0.9884766131600059, "cumulative_pnl": 8.953839801862792, "entry_price": 1.267e-05, "exit_price": 1.257e-05, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T03:30:42.825868", "symbol": "BNBUSDC", "pnl": -1.1813029200000031, "cumulative_pnl": 8.236313026940714, "entry_price": 1182.42, "exit_price": 1170.71, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T03:45:58.036006", "symbol": "XLMUSDC", "pnl": -1.0563174999999871, "cumulative_pnl": 7.643771672018659, "entry_price": 0.4075, "exit_price": 0.404, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T10:15:48.439502", "symbol": "PNUTUSDC", "pnl": -0.2777331200000051, "cumulative_pnl": 7.829814697096573, "entry_price": 0.2248, "exit_price": 0.22399999999999998, "reason": "Trailing Stop (0.70% profit)"}, {"timestamp": "2025-10-04T10:45:50.291839", "symbol": "SHIBUSDC", "pnl": -1.304739310920016, "cumulative_pnl": 6.98885153125449, "entry_price": 1.266e-05, "exit_price": 1.2519999999999999e-05, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T10:45:53.967200", "symbol": "LINKUSDC", "pnl": -1.416365499999998, "cumulative_pnl": 6.036262176332421, "entry_price": 22.16, "exit_price": 21.89, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T10:45:55.688690", "symbol": "IOTAUSDC", "pnl": -1.6061114999999948, "cumulative_pnl": 4.8939268214103535, "entry_price": 0.1878, "exit_price": 0.18515394736842106, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T10:45:58.064840", "symbol": "ENAUSDC", "pnl": -0.21541020799999644, "cumulative_pnl": 5.142292758488274, "entry_price": 0.6059, "exit_price": 0.6045, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-10-04T13:00:47.925433", "symbol": "DOGEUSDC", "pnl": -1.3597716999999994, "cumulative_pnl": 4.246297203566208, "entry_price": 0.2527, "exit_price": 0.24975999999999998, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T17:00:44.148927", "symbol": "SOLUSDC", "pnl": -1.5568578200000105, "cumulative_pnl": 3.1532155286441252, "entry_price": 230.18, "exit_price": 227.04999999999998, "reason": "Stop Loss"}, {"timestamp": "2025-10-04T17:00:46.477956", "symbol": "PNUTUSDC", "pnl": -1.9471566699999987, "cumulative_pnl": 1.6698350037220422, "entry_price": 0.2188, "exit_price": 0.2149711690017513, "reason": "Stop Loss"}, {"timestamp": "2025-10-05T05:15:45.844238", "symbol": "DOGEUSDC", "pnl": 1.4103519900000034, "cumulative_pnl": 3.543963138799974, "entry_price": 0.24902, "exit_price": 0.25654223880597016, "reason": "Trailing Stop (3.12% profit)"}, {"timestamp": "2025-10-05T05:30:50.630304", "symbol": "IOTAUSDC", "pnl": 0.974748400000001, "cumulative_pnl": 4.982487683877906, "entry_price": 0.1862, "exit_price": 0.1902, "reason": "Trailing Stop (2.27% profit)"}, {"timestamp": "2025-10-05T06:00:42.231171", "symbol": "ADAUSDC", "pnl": 0.6405052300000039, "cumulative_pnl": 6.086769058955831, "entry_price": 0.8432, "exit_price": 0.8557, "reason": "Trailing Stop (1.77% profit)"}, {"timestamp": "2025-10-05T06:00:43.634212", "symbol": "XRPUSDC", "pnl": 1.0292463000000076, "cumulative_pnl": 7.579791504033757, "entry_price": 2.9448, "exit_price": 3.0113000000000003, "reason": "Trailing Stop (2.42% profit)"}, {"timestamp": "2025-10-05T06:15:55.287671", "symbol": "ENAUSDC", "pnl": 1.78015909200001, "cumulative_pnl": 9.823726741111699, "entry_price": 0.5871, "exit_price": 0.6092000000000001, "reason": "Trailing Stop (4.20% profit)"}, {"timestamp": "2025-10-05T09:30:37.767061", "symbol": "BTCUSDC", "pnl": 1.0611607494999977, "cumulative_pnl": 11.348663635689626, "entry_price": 121989.02, "exit_price": 124824.03, "reason": "Trailing Stop (2.46% profit)"}, {"timestamp": "2025-10-05T10:15:53.174864", "symbol": "IOTAUSDC", "pnl": 1.003713199999995, "cumulative_pnl": 12.816152980767534, "entry_price": 0.1897, "exit_price": 0.1939, "reason": "Trailing Stop (2.22% profit)"}, {"timestamp": "2025-10-05T10:45:47.781618", "symbol": "PEPEUSDC", "pnl": 0.7032159925000009, "cumulative_pnl": 13.983145118345469, "entry_price": 9.95e-06, "exit_price": 1.011e-05, "reason": "Trailing Stop (1.80% profit)"}, {"timestamp": "2025-10-05T11:15:49.599396", "symbol": "XLMUSDC", "pnl": 0.500548599999995, "cumulative_pnl": 14.947469863423393, "entry_price": 0.401, "exit_price": 0.4058112, "reason": "Trailing Stop (1.41% profit)"}, {"timestamp": "2025-10-05T11:30:56.001189", "symbol": "LINKUSDC", "pnl": 0.546060099999998, "cumulative_pnl": 15.95730610850132, "entry_price": 22.42, "exit_price": 22.71, "reason": "Trailing Stop (1.70% profit)"}, {"timestamp": "2025-10-05T21:15:38.579162", "symbol": "ETHUSDC", "pnl": -1.3716793439999984, "cumulative_pnl": 15.04940290957925, "entry_price": 4553.67, "exit_price": 4500.09, "reason": "Stop Loss"}, {"timestamp": "2025-10-06T03:00:53.403416", "symbol": "LINKUSDC", "pnl": -2.0635614999999845, "cumulative_pnl": 13.44961755465718, "entry_price": 21.97, "exit_price": 21.560000000000002, "reason": "Stop Loss"}, {"timestamp": "2025-10-06T04:00:53.259816", "symbol": "XLMUSDC", "pnl": 0.9405365999999981, "cumulative_pnl": 14.853930299735104, "entry_price": 0.393, "exit_price": 0.4012, "reason": "Trailing Stop (2.29% profit)"}, {"timestamp": "2025-10-06T07:00:58.425114", "symbol": "IOTAUSDC", "pnl": -1.6922499000000017, "cumulative_pnl": 13.625456544813034, "entry_price": 0.1905, "exit_price": 0.1876486641221374, "reason": "Stop Loss"}, {"timestamp": "2025-10-06T11:45:45.250428", "symbol": "SOLUSDC", "pnl": 0.4505267199999982, "cumulative_pnl": 14.539759409890948, "entry_price": 230.65, "exit_price": 233.19, "reason": "Trailing Stop (1.13% profit)"}, {"timestamp": "2025-10-06T16:30:42.417837", "symbol": "PEPEUSDC", "pnl": 1.109687255459997, "cumulative_pnl": 16.113222810428873, "entry_price": 9.91e-06, "exit_price": 1.015e-05, "reason": "Trailing Stop (2.62% profit)"}, {"timestamp": "2025-10-06T17:00:36.016269", "symbol": "ETHUSDC", "pnl": 1.2564407900000134, "cumulative_pnl": 17.833439745506816, "entry_price": 4522.36, "exit_price": 4645.750000000001, "reason": "Trailing Stop (2.90% profit)"}, {"timestamp": "2025-10-06T17:00:38.468094", "symbol": "ADAUSDC", "pnl": 1.3444560499999991, "cumulative_pnl": 19.64167194058473, "entry_price": 0.8399, "exit_price": 0.8642, "reason": "Trailing Stop (3.01% profit)"}, {"timestamp": "2025-10-06T17:00:47.600739", "symbol": "LINKUSDC", "pnl": 1.4488488000000073, "cumulative_pnl": 21.554296885662666, "entry_price": 21.93, "exit_price": 22.610000000000003, "reason": "Trailing Stop (3.43% profit)"}, {"timestamp": "2025-10-06T18:15:48.949350", "symbol": "SHIBUSDC", "pnl": 0.9695083125699964, "cumulative_pnl": 22.987581343310595, "entry_price": 1.261e-05, "exit_price": 1.2879999999999999e-05, "reason": "Trailing Stop (2.31% profit)"}, {"timestamp": "2025-10-06T19:45:34.673157", "symbol": "BTCUSDC", "pnl": 0.7908938294000072, "cumulative_pnl": 24.24225131778853, "entry_price": 123056.68, "exit_price": 125233.98000000001, "reason": "Trailing Stop (1.92% profit)"}, {"timestamp": "2025-10-06T20:30:52.219936", "symbol": "ENAUSDC", "pnl": 0.9408993830000073, "cumulative_pnl": 25.646926845866453, "entry_price": 0.5902, "exit_price": 0.6025, "reason": "Trailing Stop (2.27% profit)"}, {"timestamp": "2025-10-06T23:00:47.560668", "symbol": "SOLUSDC", "pnl": -0.1300606399999971, "cumulative_pnl": 25.980642350944386, "entry_price": 233.95, "exit_price": 233.81, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-10-07T08:30:37.275452", "symbol": "BTCUSDC", "pnl": -1.6123527356999954, "cumulative_pnl": 24.832065760322322, "entry_price": 125796.99, "exit_price": 124005.84000000001, "reason": "Stop Loss"}, {"timestamp": "2025-10-07T17:15:36.482104", "symbol": "BTCUSDC", "pnl": -1.7336408720000038, "cumulative_pnl": 23.562201033400243, "entry_price": 123921.11, "exit_price": 121999.98, "reason": "Stop Loss"}, {"timestamp": "2025-10-08T05:30:42.689379", "symbol": "ADAUSDC", "pnl": -1.8597706400000042, "cumulative_pnl": 22.166206538478157, "entry_price": 0.8302, "exit_price": 0.8164, "reason": "Stop Loss"}, {"timestamp": "2025-10-08T05:30:49.791927", "symbol": "PNUTUSDC", "pnl": -1.5250297799999983, "cumulative_pnl": 21.10495290355609, "entry_price": 0.2111, "exit_price": 0.2083, "reason": "Stop Loss"}, {"timestamp": "2025-10-08T05:30:57.795951", "symbol": "IOTAUSDC", "pnl": -1.4443596999999988, "cumulative_pnl": 20.12436934863402, "entry_price": 0.1856, "exit_price": 0.1832842007434944, "reason": "Stop Loss"}, {"timestamp": "2025-10-08T15:45:34.115630", "symbol": "BTCUSDC", "pnl": 0.13766453970000164, "cumulative_pnl": 20.725810033411946, "entry_price": 121212.03, "exit_price": 121790.8, "reason": "Trailing Stop (1.08% profit)"}, {"timestamp": "2025-10-08T19:45:40.402541", "symbol": "PEPEUSDC", "pnl": 1.6187096515199926, "cumulative_pnl": 22.808295830009868, "entry_price": 9.3e-06, "exit_price": 9.62e-06, "reason": "Trailing Stop (3.88% profit)"}, {"timestamp": "2025-10-08T19:45:41.828428", "symbol": "SHIBUSDC", "pnl": 0.8858552404800045, "cumulative_pnl": 24.15792721556779, "entry_price": 1.216e-05, "exit_price": 1.2400000000000002e-05, "reason": "Trailing Stop (2.00% profit)"}, {"timestamp": "2025-10-08T20:15:37.376957", "symbol": "DOGEUSDC", "pnl": 2.122879590000005, "cumulative_pnl": 26.74458295064572, "entry_price": 0.24867, "exit_price": 0.25974, "reason": "Trailing Stop (4.40% profit)"}, {"timestamp": "2025-10-08T21:15:49.953448", "symbol": "IOTAUSDC", "pnl": 0.5154773999999962, "cumulative_pnl": 27.723836495723653, "entry_price": 0.1857, "exit_price": 0.1879899628252788, "reason": "Trailing Stop (1.48% profit)"}, {"timestamp": "2025-10-09T06:19:55.392952", "symbol": "XRPUSDC", "pnl": -0.7235430900000043, "cumulative_pnl": 27.46406955080156, "entry_price": 2.8797, "exit_price": 2.8436, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-10-09T06:20:05.960929", "symbol": "XLMUSDC", "pnl": -0.46024619999999605, "cumulative_pnl": 27.467599495879497, "entry_price": 0.3853, "exit_price": 0.3825, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-10-09T10:27:22.093222", "symbol": "ETHUSDC", "pnl": -2.5162184930000047, "cumulative_pnl": 25.415157147957416, "entry_price": 4464.46, "exit_price": 4360.45, "reason": "Stop Loss"}, {"timestamp": "2025-10-09T10:30:32.930081", "symbol": "BTCUSDC", "pnl": -1.3876652618999956, "cumulative_pnl": 24.49126803113534, "entry_price": 122813.0, "exit_price": 121343.99, "reason": "Stop Loss"}, {"timestamp": "2025-10-10T06:00:56.087807", "symbol": "ENAUSDC", "pnl": 1.048332075000004, "cumulative_pnl": 26.003376251213275, "entry_price": 0.5524, "exit_price": 0.5651, "reason": "Trailing Stop (2.64% profit)"}, {"timestamp": "2025-10-10T16:30:40.227220", "symbol": "PNUTUSDC", "pnl": -1.3341050399999976, "cumulative_pnl": 25.133047356291208, "entry_price": 0.2064, "exit_price": 0.20405631709331132, "reason": "Stop Loss"}, {"timestamp": "2025-10-10T17:00:36.736216", "symbol": "ETHUSDC", "pnl": -2.281126775999992, "cumulative_pnl": 23.31569672536913, "entry_price": 4370.41, "exit_price": 4279.01, "reason": "Stop Loss"}, {"timestamp": "2025-10-10T17:00:38.031735", "symbol": "ADAUSDC", "pnl": -2.0981268000000073, "cumulative_pnl": 21.68134607044705, "entry_price": 0.8208, "exit_price": 0.8051999999999999, "reason": "Stop Loss"}, {"timestamp": "2025-10-10T17:00:44.008460", "symbol": "PEPEUSDC", "pnl": -2.657433113889995, "cumulative_pnl": 19.487689101634984, "entry_price": 9.35e-06, "exit_price": 9.12e-06, "reason": "Stop Loss"}, {"timestamp": "2025-10-10T17:00:47.401131", "symbol": "XLMUSDC", "pnl": -0.2546834000000088, "cumulative_pnl": 19.696781846712902, "entry_price": 0.3803, "exit_price": 0.3791152671755725, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-10-10T17:00:51.003654", "symbol": "IOTAUSDC", "pnl": -0.5164962000000004, "cumulative_pnl": 19.644061791790833, "entry_price": 0.1797, "exit_price": 0.1782, "reason": "Trailing Stop (0.00% profit)"}, {"timestamp": "2025-10-10T17:15:39.816148", "symbol": "BNBUSDC", "pnl": -2.0873877700000047, "cumulative_pnl": 18.02045016686874, "entry_price": 1258.28, "exit_price": 1234.35, "reason": "Stop Loss"}, {"timestamp": "2025-10-10T20:19:21.293102", "symbol": "XRPUSDC", "pnl": -4.131741449999997, "cumulative_pnl": 14.352484861946678, "entry_price": 2.829, "exit_price": 2.7175000000000002, "reason": "Stop Loss"}, {"timestamp": "2025-10-11T04:48:03.113735", "symbol": "BTCUSDC", "pnl": -3.962681576999996, "cumulative_pnl": 10.85357943002461, "entry_price": 117583.02, "exit_price": 113151.77647058824, "reason": "Stop Loss"}, {"timestamp": "2025-10-11T16:42:11.667780", "symbol": "SHIBUSDC", "pnl": -1.167086143520007, "cumulative_pnl": 10.15026943158253, "entry_price": 1.033e-05, "exit_price": 1.0229999999999999e-05, "reason": "Stop Loss"}, {"timestamp": "2025-10-11T17:45:43.354907", "symbol": "PNUTUSDC", "pnl": 0.5338964999999987, "cumulative_pnl": 11.147942076660456, "entry_price": 0.1418, "exit_price": 0.1436, "reason": "Trailing Stop (2.09% profit)"}, {"timestamp": "2025-10-11T21:00:43.826342", "symbol": "PEPEUSDC", "pnl": -2.0240167357299828, "cumulative_pnl": 9.587701486008385, "entry_price": 7.12e-06, "exit_price": 6.990000000000001e-06, "reason": "Stop Loss"}, {"timestamp": "2025-10-11T23:00:38.156561", "symbol": "BTCUSDC", "pnl": -1.7092450000000092, "cumulative_pnl": 8.342232631086304, "entry_price": 112108.99, "exit_price": 110411.01, "reason": "Stop Loss"}, {"timestamp": "2025-10-13T12:45:03.172362", "symbol": "SOLUSDC", "pnl": 4.161703399999994, "cumulative_pnl": 12.967712176164241, "entry_price": 180.2, "exit_price": 195.59999999999997, "reason": "Trailing Stop (8.98% profit)"}, {"timestamp": "2025-10-13T13:15:41.856226", "symbol": "DOGEUSDC", "pnl": 5.509467569999998, "cumulative_pnl": 18.940955891242155, "entry_price": 0.18713, "exit_price": 0.20815999999999998, "reason": "Trailing Stop (11.87% profit)"}, {"timestamp": "2025-10-14T09:45:32.509655", "symbol": "BTCUSDC", "pnl": -2.741839208399997, "cumulative_pnl": 16.662892827920075, "entry_price": 114562.33, "exit_price": 111636.99, "reason": "Stop Loss"}];
+        
+        new Chart(pnlCtx, {
+            type: 'line',
+            data: {
+                labels: pnlData.map(d => d.timestamp.split('T')[0]),
+                datasets: [{
+                    label: 'Cumulative P&L',
+                    data: pnlData.map(d => d.cumulative_pnl),
+                    borderColor: pnlData[pnlData.length - 1]?.cumulative_pnl > 0 ? '#10b981' : '#ef4444',
+                    backgroundColor: pnlData[pnlData.length - 1]?.cumulative_pnl > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `P&L: ${context.parsed.y.toFixed(2)}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: (value) => '$' + value.toFixed(0)
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Win/Loss Distribution Chart
+        const winLossCtx = document.getElementById('winLossChart').getContext('2d');
+        new Chart(winLossCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Wins', 'Losses'],
+                datasets: [{
+                    data: [78, 110],
+                    backgroundColor: ['#10b981', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+        
+        // Exit Type Chart
+        const exitTypeCtx = document.getElementById('exitTypeChart').getContext('2d');
+        const exitTypeData = {"Stop Loss": 93, "Trailing Stop": 95};
+        
+        new Chart(exitTypeCtx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(exitTypeData),
+                datasets: [{
+                    label: 'Exit Count',
+                    data: Object.values(exitTypeData),
+                    backgroundColor: '#667eea'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+        
+        // Trade filtering and sorting
+        let allTrades = [{"timestamp": "2025-09-23T16:35:49.545677", "symbol": "PEPEUSDC", "entry_price": 9.77e-06, "exit_price": 9.65e-06, "quantity": 10235414.0, "profit_loss": -1.4270214198799882, "total_realized_profit": -1.4270214198799882, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 10235414.0, "highest_price_reached": 9.77e-06, "reason": "Stop Loss", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 2.4759005580923548}, {"timestamp": "2025-09-23T16:35:53.281095", "symbol": "ENAUSDC", "entry_price": 0.6171, "exit_price": 0.6103000000000001, "quantity": 162.04, "profit_loss": -1.3007598959999866, "total_realized_profit": -1.3007598959999866, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 162.04, "highest_price_reached": 0.6171, "reason": "Stop Loss", "entry_reason": "Volume spike 4.9x average", "risk_reward_planned": 2.348686714883903}, {"timestamp": "2025-09-23T23:15:59.291645", "symbol": "BTCUSDC", "entry_price": 113097.63, "exit_price": 112040.98, "quantity": 0.00088, "profit_loss": -1.1279739768000077, "total_realized_profit": -1.1279739768000077, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.00088, "highest_price_reached": 113097.63, "reason": "Stop Loss", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 4.111258371549943}, {"timestamp": "2025-09-23T23:16:03.205040", "symbol": "ADAUSDC", "entry_price": 0.8184, "exit_price": 0.8116000000000001, "quantity": 122.1, "profit_loss": -1.0293029999999899, "total_realized_profit": -1.0293029999999899, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 122.1, "highest_price_reached": 0.8184, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 6.212523719164957}, {"timestamp": "2025-09-23T23:16:08.714387", "symbol": "PNUTUSDC", "entry_price": 0.2105, "exit_price": 0.21059999999999998, "quantity": 237.5, "profit_loss": -0.07626125000000261, "total_realized_profit": 0.25082374999999646, "partial_exits": true, "tp1_exit_price": 0.2125, "original_quantity": 475.0, "highest_price_reached": 0.2129, "reason": "Trailing Stop (0.63% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.758041458184475}, {"timestamp": "2025-09-23T23:16:13.361279", "symbol": "XLMUSDC", "entry_price": 0.3703, "exit_price": 0.3658, "quantity": 270.0, "profit_loss": -1.4137470000000012, "total_realized_profit": -1.4137470000000012, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 270.0, "highest_price_reached": 0.3703, "reason": "Stop Loss", "entry_reason": "Volume spike 4.4x average", "risk_reward_planned": 3.3697433096668514}, {"timestamp": "2025-09-23T23:16:14.344726", "symbol": "LINKUSDC", "entry_price": 21.95, "exit_price": 21.67, "quantity": 4.55, "profit_loss": -1.472470999999989, "total_realized_profit": -1.472470999999989, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 4.55, "highest_price_reached": 21.95, "reason": "Stop Loss", "entry_reason": "Volume spike 3.3x average", "risk_reward_planned": 2.5028519279032193}, {"timestamp": "2025-09-23T23:16:16.217964", "symbol": "IOTAUSDC", "entry_price": 0.1723, "exit_price": 0.17047844827586206, "quantity": 580.0, "profit_loss": -1.2553115000000101, "total_realized_profit": -1.2553115000000101, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 580.0, "highest_price_reached": 0.1723, "reason": "Stop Loss", "entry_reason": "Bounce from swing_high support (strength: 3)", "risk_reward_planned": 8.759068485200212}, {"timestamp": "2025-09-23T23:16:17.865895", "symbol": "ENAUSDC", "entry_price": 0.6118, "exit_price": 0.6027, "quantity": 163.45, "profit_loss": -1.6859050249999994, "total_realized_profit": -1.6859050249999994, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 163.45, "highest_price_reached": 0.6118, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.7993165579372694}, {"timestamp": "2025-09-24T16:00:38.711604", "symbol": "ETHUSDC", "entry_price": 4178.75, "exit_price": 4153.94, "quantity": 0.0239, "profit_loss": -0.7921102910000095, "total_realized_profit": -0.7921102910000095, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0239, "highest_price_reached": 4178.75, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 4.219841790016696}, {"timestamp": "2025-09-24T16:00:46.932077", "symbol": "ENAUSDC", "entry_price": 0.6079, "exit_price": 0.6025, "quantity": 164.5, "profit_loss": -1.0874107999999933, "total_realized_profit": -1.0874107999999933, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 164.5, "highest_price_reached": 0.6079, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.6962654129335637}, {"timestamp": "2025-09-24T18:00:43.872114", "symbol": "DOGEUSDC", "entry_price": 0.24819, "exit_price": 0.24528999999999998, "quantity": 402.0, "profit_loss": -1.3641789600000056, "total_realized_profit": -1.3641789600000056, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 402.0, "highest_price_reached": 0.24819, "reason": "Stop Loss", "entry_reason": "Volume spike 2.5x average", "risk_reward_planned": 3.1067073934052556}, {"timestamp": "2025-09-24T19:30:42.483280", "symbol": "XRPUSDC", "entry_price": 2.8847, "exit_price": 2.9386, "quantity": 17.3, "profit_loss": 0.831726910000001, "total_realized_profit": 1.4768006599999994, "partial_exits": true, "tp1_exit_price": 2.9273, "original_quantity": 34.6, "highest_price_reached": 2.9494, "reason": "Trailing Stop (1.94% profit)", "entry_reason": "Volume spike 2.9x average", "risk_reward_planned": 2.7355055284768586}, {"timestamp": "2025-09-24T20:45:50.657046", "symbol": "IOTAUSDC", "entry_price": 0.1728, "exit_price": 0.1712, "quantity": 578.0, "profit_loss": -1.1236320000000104, "total_realized_profit": -1.1236320000000104, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 578.0, "highest_price_reached": 0.1728, "reason": "Stop Loss", "entry_reason": "Volume spike 6.3x average", "risk_reward_planned": 3.4243863816310705}, {"timestamp": "2025-09-24T21:00:42.136129", "symbol": "XLMUSDC", "entry_price": 0.3688, "exit_price": 0.3784, "quantity": 135.0, "profit_loss": 1.1951279999999995, "total_realized_profit": 1.9371711999999972, "partial_exits": true, "tp1_exit_price": 0.375, "original_quantity": 271.0, "highest_price_reached": 0.38, "reason": "Trailing Stop (2.73% profit)", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 3.137972099353543}, {"timestamp": "2025-09-24T21:15:49.146153", "symbol": "PEPEUSDC", "entry_price": 9.71e-06, "exit_price": 9.66e-06, "quantity": 10298661.0, "profit_loss": -0.7144181135699952, "total_realized_profit": -0.7144181135699952, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 10298661.0, "highest_price_reached": 9.71e-06, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.2749326145552233}, {"timestamp": "2025-09-24T21:30:47.468888", "symbol": "LINKUSDC", "entry_price": 21.65, "exit_price": 21.82, "quantity": 2.3, "profit_loss": 0.2910190000000039, "total_realized_profit": 0.7217647000000049, "partial_exits": true, "tp1_exit_price": 21.89, "original_quantity": 4.61, "highest_price_reached": 21.93, "reason": "Trailing Stop (0.79% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.826440438317405}, {"timestamp": "2025-09-24T21:45:34.990103", "symbol": "ETHUSDC", "entry_price": 4185.01, "exit_price": 4158.57, "quantity": 0.0238, "profit_loss": -0.8278492040000122, "total_realized_profit": -0.8278492040000122, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0238, "highest_price_reached": 4185.01, "reason": "Stop Loss", "entry_reason": "Volume spike 3.7x average", "risk_reward_planned": 4.321830510294867}, {"timestamp": "2025-09-24T22:30:43.374453", "symbol": "SOLUSDC", "entry_price": 212.61, "exit_price": 212.22, "quantity": 0.235, "profit_loss": -0.19148505000000346, "total_realized_profit": 0.3471490499999962, "partial_exits": true, "tp1_exit_price": 215.33, "original_quantity": 0.47, "highest_price_reached": 215.33, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Volume spike 2.9x average", "risk_reward_planned": 2.7993101450801454}, {"timestamp": "2025-09-25T09:07:33.147070", "symbol": "ADAUSDC", "entry_price": 0.8226, "exit_price": 0.79, "quantity": 121.5, "profit_loss": -4.156830899999996, "total_realized_profit": -4.156830899999996, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 121.5, "highest_price_reached": 0.8226, "reason": "Stop Loss", "entry_reason": "Volume spike 3.2x average", "risk_reward_planned": 2.6383988709987616}, {"timestamp": "2025-09-25T09:07:35.435491", "symbol": "XRPUSDC", "entry_price": 2.9746, "exit_price": 2.8434, "quantity": 33.6, "profit_loss": -4.603804800000007, "total_realized_profit": -4.603804800000007, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 33.6, "highest_price_reached": 2.9746, "reason": "Stop Loss", "entry_reason": "Volume spike 3.3x average", "risk_reward_planned": 2.4071766153049534}, {"timestamp": "2025-09-25T09:07:44.159911", "symbol": "SHIBUSDC", "entry_price": 1.223e-05, "exit_price": 1.188e-05, "quantity": 8176614.0, "profit_loss": -3.05895306354, "total_realized_profit": -3.05895306354, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 8176614.0, "highest_price_reached": 1.223e-05, "reason": "Stop Loss", "entry_reason": "Volume spike 2.8x average", "risk_reward_planned": 4.299788881069659}, {"timestamp": "2025-09-25T09:15:33.857198", "symbol": "BTCUSDC", "entry_price": 113160.0, "exit_price": 111725.99999999999, "quantity": 0.00088, "profit_loss": -1.4598196800000127, "total_realized_profit": -1.4598196800000127, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.00088, "highest_price_reached": 113160.0, "reason": "Stop Loss", "entry_reason": "Volume spike 3.0x average", "risk_reward_planned": 3.7478137751045875}, {"timestamp": "2025-09-29T09:00:47.133215", "symbol": "DOGEUSDC", "entry_price": 0.23224, "exit_price": 0.23204999999999998, "quantity": 215.0, "profit_loss": -0.14067235000000505, "total_realized_profit": 0.8441286999999946, "partial_exits": true, "tp1_exit_price": 0.23741, "original_quantity": 430.0, "highest_price_reached": 0.23741, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.264720769360615}, {"timestamp": "2025-09-29T09:00:50.793753", "symbol": "PNUTUSDC", "entry_price": 0.2059, "exit_price": 0.2039, "quantity": 485.6, "profit_loss": -1.170198880000001, "total_realized_profit": -1.170198880000001, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 485.6, "highest_price_reached": 0.2059, "reason": "Stop Loss", "entry_reason": "Volume spike 4.2x average", "risk_reward_planned": 2.6746299662425326}, {"timestamp": "2025-09-29T11:15:39.883988", "symbol": "BNBUSDC", "entry_price": 992.22, "exit_price": 1004.77, "quantity": 0.05, "profit_loss": 0.5276504999999977, "total_realized_profit": 1.119516719999992, "partial_exits": true, "tp1_exit_price": 1006.28, "original_quantity": 0.1, "highest_price_reached": 1011.76, "reason": "Trailing Stop (1.46% profit)", "entry_reason": "Volume spike 2.9x average", "risk_reward_planned": 6.012931295674682}, {"timestamp": "2025-09-29T11:15:43.998862", "symbol": "XRPUSDC", "entry_price": 2.8992, "exit_price": 2.8754, "quantity": 34.4, "profit_loss": -1.0173662400000014, "total_realized_profit": -1.0173662400000014, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 34.4, "highest_price_reached": 2.8992, "reason": "Stop Loss", "entry_reason": "Volume spike 2.8x average", "risk_reward_planned": 3.256386061872346}, {"timestamp": "2025-09-29T12:45:45.630415", "symbol": "SOLUSDC", "entry_price": 209.33, "exit_price": 207.04000000000002, "quantity": 0.477, "profit_loss": -1.2909384899999963, "total_realized_profit": -1.2909384899999963, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.477, "highest_price_reached": 209.33, "reason": "Stop Loss", "entry_reason": "Volume spike 3.1x average", "risk_reward_planned": 3.1457769762548713}, {"timestamp": "2025-09-29T12:45:50.470547", "symbol": "SHIBUSDC", "entry_price": 1.193e-05, "exit_price": 1.182e-05, "quantity": 8382229.0, "profit_loss": -1.1211231287499912, "total_realized_profit": -1.1211231287499912, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 8382229.0, "highest_price_reached": 1.193e-05, "reason": "Stop Loss", "entry_reason": "Volume spike 3.0x average", "risk_reward_planned": 3.3314700950251623}, {"timestamp": "2025-09-29T14:45:47.892958", "symbol": "XLMUSDC", "entry_price": 0.3699, "exit_price": 0.3658, "quantity": 270.0, "profit_loss": -1.305638999999998, "total_realized_profit": -1.305638999999998, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 270.0, "highest_price_reached": 0.3699, "reason": "Stop Loss", "entry_reason": "Volume spike 3.8x average", "risk_reward_planned": 2.2898353349015634}, {"timestamp": "2025-09-29T15:00:51.138201", "symbol": "IOTAUSDC", "entry_price": 0.1653, "exit_price": 0.1629, "quantity": 604.0, "profit_loss": -1.647832800000008, "total_realized_profit": -1.647832800000008, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 604.0, "highest_price_reached": 0.1653, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 4)", "risk_reward_planned": 3.543518518518545}, {"timestamp": "2025-09-29T16:30:36.302311", "symbol": "ADAUSDC", "entry_price": 0.7924, "exit_price": 0.8106, "quantity": 63.1, "profit_loss": 1.0472706999999994, "total_realized_profit": 1.5201549999999993, "partial_exits": true, "tp1_exit_price": 0.8015, "original_quantity": 126.1, "highest_price_reached": 0.814, "reason": "Trailing Stop (2.42% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.7918120001409092}, {"timestamp": "2025-09-29T17:15:41.103068", "symbol": "SOLUSDC", "entry_price": 206.06, "exit_price": 211.7648559670782, "quantity": 0.243, "profit_loss": 1.2847485600000033, "total_realized_profit": 1.7773226200000074, "partial_exits": true, "tp1_exit_price": 208.57, "original_quantity": 0.485, "highest_price_reached": 212.57, "reason": "Trailing Stop (2.85% profit)", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 2.170377704282607}, {"timestamp": "2025-09-29T17:15:42.553548", "symbol": "PNUTUSDC", "entry_price": 0.1995, "exit_price": 0.2046, "quantity": 250.6, "profit_loss": 1.1767925399999983, "total_realized_profit": 1.6275718199999933, "partial_exits": true, "tp1_exit_price": 0.2023, "original_quantity": 501.2, "highest_price_reached": 0.2064, "reason": "Trailing Stop (3.15% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.103597425888799}, {"timestamp": "2025-09-29T17:15:43.754982", "symbol": "PEPEUSDC", "entry_price": 9.16e-06, "exit_price": 9.36e-06, "quantity": 5458515.0, "profit_loss": 0.9906113021999987, "total_realized_profit": 1.4359169559000027, "partial_exits": true, "tp1_exit_price": 9.27e-06, "original_quantity": 10917030.0, "highest_price_reached": 9.42e-06, "reason": "Trailing Stop (2.53% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.3427109974424467}, {"timestamp": "2025-09-29T17:15:45.682622", "symbol": "XLMUSDC", "entry_price": 0.3695, "exit_price": 0.37420000000000003, "quantity": 135.0, "profit_loss": 0.5341005000000051, "total_realized_profit": 1.0547145000000118, "partial_exits": true, "tp1_exit_price": 0.3742, "original_quantity": 270.0, "highest_price_reached": 0.3762, "reason": "Trailing Stop (1.30% profit)", "entry_reason": "Volume spike 3.8x average", "risk_reward_planned": 3.036829990134861}, {"timestamp": "2025-09-29T17:15:46.743593", "symbol": "LINKUSDC", "entry_price": 21.05, "exit_price": 21.54, "quantity": 2.37, "profit_loss": 1.0603616999999965, "total_realized_profit": 1.483240099999994, "partial_exits": true, "tp1_exit_price": 21.28, "original_quantity": 4.75, "highest_price_reached": 21.64, "reason": "Trailing Stop (2.49% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.600098863074673}, {"timestamp": "2025-09-29T17:15:47.775781", "symbol": "IOTAUSDC", "entry_price": 0.1633, "exit_price": 0.1667, "quantity": 306.0, "profit_loss": 0.9394199999999958, "total_realized_profit": 1.5425765999999945, "partial_exits": true, "tp1_exit_price": 0.1657, "original_quantity": 612.0, "highest_price_reached": 0.168, "reason": "Trailing Stop (2.57% profit)", "entry_reason": "Volume spike 5.4x average", "risk_reward_planned": 2.254415011037505}, {"timestamp": "2025-09-29T17:45:50.745227", "symbol": "ENAUSDC", "entry_price": 0.573, "exit_price": 0.5713999999999999, "quantity": 87.26, "profit_loss": -0.239476344000004, "total_realized_profit": 0.46251290399999484, "partial_exits": true, "tp1_exit_price": 0.5825, "original_quantity": 174.52, "highest_price_reached": 0.5825, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Volume spike 4.6x average", "risk_reward_planned": 2.4906513609879277}, {"timestamp": "2025-09-29T18:30:45.034148", "symbol": "ENAUSDC", "entry_price": 0.5689, "exit_price": 0.5646, "quantity": 175.77, "profit_loss": -0.9550462949999949, "total_realized_profit": -0.9550462949999949, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 175.77, "highest_price_reached": 0.5689, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.6888174685698067}, {"timestamp": "2025-09-29T18:45:36.196617", "symbol": "BNBUSDC", "entry_price": 1017.26, "exit_price": 1006.3902040816325, "quantity": 0.098, "profit_loss": -1.263557720000011, "total_realized_profit": -1.263557720000011, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.098, "highest_price_reached": 1017.26, "reason": "Stop Loss", "entry_reason": "Volume spike 2.9x average", "risk_reward_planned": 2.522641378420989}, {"timestamp": "2025-09-29T19:00:45.370147", "symbol": "PNUTUSDC", "entry_price": 0.2042, "exit_price": 0.20020000000000002, "quantity": 489.7, "profit_loss": -2.1568346799999882, "total_realized_profit": -2.1568346799999882, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 489.7, "highest_price_reached": 0.2042, "reason": "Stop Loss", "entry_reason": "Volume spike 3.4x average", "risk_reward_planned": 3.3591688654353606}, {"timestamp": "2025-09-29T19:00:48.815949", "symbol": "XLMUSDC", "entry_price": 0.3741, "exit_price": 0.37000786516853934, "quantity": 267.0, "profit_loss": -1.291276799999993, "total_realized_profit": -1.291276799999993, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 267.0, "highest_price_reached": 0.3741, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.1900375298533135}, {"timestamp": "2025-09-29T19:15:40.044712", "symbol": "DOGEUSDC", "entry_price": 0.23408, "exit_price": 0.23167000000000001, "quantity": 427.0, "profit_loss": -1.227945249999998, "total_realized_profit": -1.227945249999998, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 427.0, "highest_price_reached": 0.23408, "reason": "Stop Loss", "entry_reason": "Volume spike 5.2x average", "risk_reward_planned": 2.6667122008970088}, {"timestamp": "2025-09-29T22:30:46.814789", "symbol": "PEPEUSDC", "entry_price": 9.23e-06, "exit_price": 9.4e-06, "quantity": 5417118.0, "profit_loss": 0.8199891516600003, "total_realized_profit": 1.2070422327599957, "partial_exits": true, "tp1_exit_price": 9.32e-06, "original_quantity": 10834236.0, "highest_price_reached": 9.43e-06, "reason": "Trailing Stop (1.86% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.8114923522116704}, {"timestamp": "2025-09-29T22:30:49.669423", "symbol": "ENAUSDC", "entry_price": 0.5595, "exit_price": 0.5694, "quantity": 89.37, "profit_loss": 0.7838732070000018, "total_realized_profit": 1.2284302710000012, "partial_exits": true, "tp1_exit_price": 0.5658, "original_quantity": 178.73, "highest_price_reached": 0.5722, "reason": "Trailing Stop (1.96% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.6558419978160632}, {"timestamp": "2025-09-29T23:15:43.930900", "symbol": "PNUTUSDC", "entry_price": 0.1999, "exit_price": 0.20529999999999998, "quantity": 250.1, "profit_loss": 1.249199479999997, "total_realized_profit": 1.7238642699999962, "partial_exits": true, "tp1_exit_price": 0.2024, "original_quantity": 500.2, "highest_price_reached": 0.2063, "reason": "Trailing Stop (2.89% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.083320498998968}, {"timestamp": "2025-09-30T00:00:38.865690", "symbol": "ADAUSDC", "entry_price": 0.7979, "exit_price": 0.8119, "quantity": 62.7, "profit_loss": 0.7768655399999937, "total_realized_profit": 1.3586261199999883, "partial_exits": true, "tp1_exit_price": 0.8088, "original_quantity": 125.3, "highest_price_reached": 0.8147, "reason": "Trailing Stop (1.80% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 4.100442068469245}, {"timestamp": "2025-09-30T00:15:44.895294", "symbol": "SOLUSDC", "entry_price": 208.56, "exit_price": 213.54000000000002, "quantity": 0.24, "profit_loss": 1.0938960000000042, "total_realized_profit": 1.5123156900000012, "partial_exits": true, "tp1_exit_price": 210.74, "original_quantity": 0.479, "highest_price_reached": 214.72, "reason": "Trailing Stop (2.64% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.6408707644502094}, {"timestamp": "2025-09-30T00:15:49.853562", "symbol": "LINKUSDC", "entry_price": 21.31, "exit_price": 21.810000000000002, "quantity": 2.34, "profit_loss": 1.0690992000000081, "total_realized_profit": 1.579331200000012, "partial_exits": true, "tp1_exit_price": 21.57, "original_quantity": 4.69, "highest_price_reached": 21.9, "reason": "Trailing Stop (2.46% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.4792551453773153}, {"timestamp": "2025-09-30T00:30:54.873097", "symbol": "IOTAUSDC", "entry_price": 0.1669, "exit_price": 0.1681, "quantity": 299.0, "profit_loss": 0.258635000000002, "total_realized_profit": 0.7279250000000058, "partial_exits": true, "tp1_exit_price": 0.1688, "original_quantity": 599.0, "highest_price_reached": 0.1689, "reason": "Trailing Stop (0.69% profit)", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 4.036319612590822}, {"timestamp": "2025-09-30T00:45:38.334134", "symbol": "BTCUSDC", "entry_price": 111337.77, "exit_price": 114124.07, "quantity": 0.00045, "profit_loss": 1.1523771720000013, "total_realized_profit": 1.1523771720000013, "partial_exits": true, "tp1_exit_price": 113300.99, "original_quantity": 0.00089, "highest_price_reached": 114478.0, "reason": "Trailing Stop (2.51% profit)", "entry_reason": "Volume spike 5.2x average", "risk_reward_planned": 3.375864601285867}, {"timestamp": "2025-09-30T01:30:51.993045", "symbol": "SHIBUSDC", "entry_price": 1.188e-05, "exit_price": 1.1989999999999999e-05, "quantity": 4208754.0, "profit_loss": 0.36249998201999556, "total_realized_profit": 0.8931817738799966, "partial_exits": true, "tp1_exit_price": 1.204e-05, "original_quantity": 8417508.0, "highest_price_reached": 1.206e-05, "reason": "Trailing Stop (1.01% profit)", "entry_reason": "Volume spike 3.8x average", "risk_reward_planned": 3.3267937219731114}, {"timestamp": "2025-09-30T06:00:52.701492", "symbol": "XLMUSDC", "entry_price": 0.3727, "exit_price": 0.3685, "quantity": 268.0, "profit_loss": -1.324241599999995, "total_realized_profit": -1.324241599999995, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 268.0, "highest_price_reached": 0.3727, "reason": "Stop Loss", "entry_reason": "Volume spike 7.8x average", "risk_reward_planned": 2.417261518494482}, {"timestamp": "2025-09-30T07:15:57.094714", "symbol": "ENAUSDC", "entry_price": 0.5603, "exit_price": 0.5492950411833921, "quantity": 178.47, "profit_loss": -2.162084427000012, "total_realized_profit": -2.162084427000012, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 178.47, "highest_price_reached": 0.5603, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 4.655195147679276}, {"timestamp": "2025-09-30T09:45:34.092297", "symbol": "BTCUSDC", "entry_price": 114572.11, "exit_price": 113706.95436781608, "quantity": 0.00087, "profit_loss": -0.9512881860000071, "total_realized_profit": -0.9512881860000071, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.00087, "highest_price_reached": 114572.11, "reason": "Stop Loss", "entry_reason": "Volume spike 3.9x average", "risk_reward_planned": 3.8690111965247125}, {"timestamp": "2025-09-30T11:00:49.697134", "symbol": "PEPEUSDC", "entry_price": 9.26e-06, "exit_price": 9.17e-06, "quantity": 10799136.0, "profit_loss": -1.1709503164799906, "total_realized_profit": -1.1709503164799906, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 10799136.0, "highest_price_reached": 9.26e-06, "reason": "Stop Loss", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 3.038764783180045}, {"timestamp": "2025-09-30T11:15:35.588821", "symbol": "ETHUSDC", "entry_price": 4169.69, "exit_price": 4161.11, "quantity": 0.0119, "profit_loss": -0.20123851999999914, "total_realized_profit": 0.4994873200000031, "partial_exits": true, "tp1_exit_price": 4236.24, "original_quantity": 0.0239, "highest_price_reached": 4236.24, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Volume spike 6.9x average", "risk_reward_planned": 2.2336622122130834}, {"timestamp": "2025-09-30T11:45:35.679526", "symbol": "BTCUSDC", "entry_price": 113786.41, "exit_price": 113011.94, "quantity": 0.00087, "profit_loss": -0.8711034645000011, "total_realized_profit": -0.8711034645000011, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.00087, "highest_price_reached": 113786.41, "reason": "Stop Loss", "entry_reason": "Volume spike 3.8x average", "risk_reward_planned": 4.355102592904466}, {"timestamp": "2025-09-30T16:30:39.824598", "symbol": "XRPUSDC", "entry_price": 2.8616, "exit_price": 2.8349, "quantity": 34.9, "profit_loss": -1.130637849999998, "total_realized_profit": -1.130637849999998, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 34.900000000000006, "highest_price_reached": 2.8616, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.254544308485032}, {"timestamp": "2025-09-30T17:15:46.877148", "symbol": "XLMUSDC", "entry_price": 0.3649, "exit_price": 0.36110000000000003, "quantity": 274.0, "profit_loss": -1.240123999999992, "total_realized_profit": -1.240123999999992, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 274.0, "highest_price_reached": 0.3649, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.262606214724299}, {"timestamp": "2025-10-01T09:59:55.301915", "symbol": "XLMUSDC", "entry_price": 0.3607, "exit_price": 0.3654, "quantity": 139.0, "profit_loss": 0.5523720999999976, "total_realized_profit": 1.1834874999999936, "partial_exits": true, "tp1_exit_price": 0.366, "original_quantity": 277.0, "highest_price_reached": 0.3683, "reason": "Trailing Stop (1.80% profit)", "entry_reason": "Volume spike 6.0x average", "risk_reward_planned": 3.341052241570927}, {"timestamp": "2025-10-01T11:15:47.356333", "symbol": "PEPEUSDC", "entry_price": 9.31e-06, "exit_price": 9.61e-06, "quantity": 5370569.0, "profit_loss": 1.5095595345199937, "total_realized_profit": 2.5362512102499917, "partial_exits": true, "tp1_exit_price": 9.53e-06, "original_quantity": 10741138.0, "highest_price_reached": 9.65e-06, "reason": "Trailing Stop (3.34% profit)", "entry_reason": "Volume spike 4.5x average", "risk_reward_planned": 3.0451866404714556}, {"timestamp": "2025-10-01T11:45:48.894637", "symbol": "ENAUSDC", "entry_price": 0.5536, "exit_price": 0.5955, "quantity": 90.32, "profit_loss": 3.6806212880000038, "total_realized_profit": 4.482826956000005, "partial_exits": true, "tp1_exit_price": 0.5637, "original_quantity": 180.63, "highest_price_reached": 0.5987, "reason": "Trailing Stop (7.82% profit)", "entry_reason": "Bounce from swing_high support (strength: 3)", "risk_reward_planned": 4.2678697649761865}, {"timestamp": "2025-10-01T12:15:39.259295", "symbol": "ETHUSDC", "entry_price": 4176.74, "exit_price": 4296.11, "quantity": 0.012, "profit_loss": 1.3307657999999989, "total_realized_profit": 2.393658925000004, "partial_exits": true, "tp1_exit_price": 4275.81, "original_quantity": 0.023899999999999998, "highest_price_reached": 4312.12, "reason": "Trailing Stop (2.93% profit)", "entry_reason": "Volume spike 6.4x average", "risk_reward_planned": 2.1657687143162607}, {"timestamp": "2025-10-01T12:15:49.275874", "symbol": "SHIBUSDC", "entry_price": 1.191e-05, "exit_price": 1.226e-05, "quantity": 4198153.0, "profit_loss": 1.36788419199, "total_realized_profit": 2.442191288790003, "partial_exits": true, "tp1_exit_price": 1.219e-05, "original_quantity": 8396305.0, "highest_price_reached": 1.235e-05, "reason": "Trailing Stop (3.38% profit)", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 2.724153705398}, {"timestamp": "2025-10-01T12:15:52.651065", "symbol": "IOTAUSDC", "entry_price": 0.1665, "exit_price": 0.173, "quantity": 300.0, "profit_loss": 1.8481499999999935, "total_realized_profit": 2.3176799999999975, "partial_exits": true, "tp1_exit_price": 0.1684, "original_quantity": 600.0, "highest_price_reached": 0.1745, "reason": "Trailing Stop (4.49% profit)", "entry_reason": "Volume spike 8.0x average", "risk_reward_planned": 4.034917555771077}, {"timestamp": "2025-10-01T14:45:37.009792", "symbol": "BTCUSDC", "entry_price": 113648.09, "exit_price": 116521.98000000001, "quantity": 0.00043, "profit_loss": 1.136799569900006, "total_realized_profit": 1.7546625588000047, "partial_exits": true, "tp1_exit_price": 115292.62, "original_quantity": 0.00087, "highest_price_reached": 116918.15, "reason": "Trailing Stop (2.57% profit)", "entry_reason": "Volume spike 3.4x average", "risk_reward_planned": 2.939078912020169}, {"timestamp": "2025-10-01T19:00:42.173954", "symbol": "ADAUSDC", "entry_price": 0.8294, "exit_price": 0.8358, "quantity": 60.3, "profit_loss": 0.28550843999999764, "total_realized_profit": 0.8111025999999955, "partial_exits": true, "tp1_exit_price": 0.8399, "original_quantity": 120.5, "highest_price_reached": 0.8443, "reason": "Trailing Stop (1.29% profit)", "entry_reason": "Volume spike 7.8x average", "risk_reward_planned": 2.1122708757637247}, {"timestamp": "2025-10-01T19:15:48.153171", "symbol": "LINKUSDC", "entry_price": 22.19, "exit_price": 22.38, "quantity": 2.25, "profit_loss": 0.3272174999999949, "total_realized_profit": 0.7892999999999949, "partial_exits": true, "tp1_exit_price": 22.45, "original_quantity": 4.5, "highest_price_reached": 22.5, "reason": "Trailing Stop (0.89% profit)", "entry_reason": "Volume spike 9.5x average", "risk_reward_planned": 2.13146261772054}, {"timestamp": "2025-10-01T22:15:41.628639", "symbol": "PNUTUSDC", "entry_price": 0.2113, "exit_price": 0.2157, "quantity": 236.6, "profit_loss": 0.9400118000000035, "total_realized_profit": 1.903659940000011, "partial_exits": true, "tp1_exit_price": 0.2156, "original_quantity": 473.2, "highest_price_reached": 0.2164, "reason": "Trailing Stop (2.11% profit)", "entry_reason": "Volume spike 3.7x average", "risk_reward_planned": 2.455242966751909}, {"timestamp": "2025-10-01T22:15:47.458350", "symbol": "ENAUSDC", "entry_price": 0.5836, "exit_price": 0.5781000000000001, "quantity": 171.35, "profit_loss": -1.1414822949999914, "total_realized_profit": -1.1414822949999914, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 171.35, "highest_price_reached": 0.5836, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.3066888045540526}, {"timestamp": "2025-10-01T23:45:44.843920", "symbol": "DOGEUSDC", "entry_price": 0.24381, "exit_price": 0.24515165853658535, "quantity": 205.0, "profit_loss": 0.17480285999999778, "total_realized_profit": 0.574540560000003, "partial_exits": true, "tp1_exit_price": 0.24632, "original_quantity": 410.0, "highest_price_reached": 0.24708, "reason": "Trailing Stop (0.83% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.9110856433397134}, {"timestamp": "2025-10-02T02:45:44.765371", "symbol": "XRPUSDC", "entry_price": 2.9193, "exit_price": 2.9437999999999995, "quantity": 17.1, "profit_loss": 0.3186909899999957, "total_realized_profit": 0.8509182299999944, "partial_exits": true, "tp1_exit_price": 2.9566, "original_quantity": 34.2, "highest_price_reached": 2.9596, "reason": "Trailing Stop (0.87% profit)", "entry_reason": "Volume spike 4.2x average", "risk_reward_planned": 2.2940279502617322}, {"timestamp": "2025-10-02T02:45:49.106955", "symbol": "XLMUSDC", "entry_price": 0.3936, "exit_price": 0.3987, "quantity": 127.0, "profit_loss": 0.5470778999999991, "total_realized_profit": 1.1449049999999927, "partial_exits": true, "tp1_exit_price": 0.3991, "original_quantity": 254.0, "highest_price_reached": 0.404, "reason": "Trailing Stop (2.33% profit)", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 3.8358034321371797}, {"timestamp": "2025-10-02T03:00:38.804292", "symbol": "BTCUSDC", "entry_price": 117278.0, "exit_price": 118512.83, "quantity": 0.00043, "profit_loss": 0.4295868431000007, "total_realized_profit": 0.9415664188999986, "partial_exits": true, "tp1_exit_price": 118742.63, "original_quantity": 0.00085, "highest_price_reached": 119228.02, "reason": "Trailing Stop (1.15% profit)", "entry_reason": "Volume spike 4.6x average", "risk_reward_planned": 2.725006263273289}, {"timestamp": "2025-10-02T03:00:47.239869", "symbol": "DOGEUSDC", "entry_price": 0.25037, "exit_price": 0.24704, "quantity": 399.0, "profit_loss": -1.5271365899999887, "total_realized_profit": -1.5271365899999887, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 399.0, "highest_price_reached": 0.25037, "reason": "Stop Loss", "entry_reason": "Volume spike 3.6x average", "risk_reward_planned": 2.112340971214514}, {"timestamp": "2025-10-02T04:30:47.278242", "symbol": "SOLUSDC", "entry_price": 219.7, "exit_price": 222.07, "quantity": 0.227, "profit_loss": 0.43770821000000104, "total_realized_profit": 1.0026192499999982, "partial_exits": true, "tp1_exit_price": 222.59, "original_quantity": 0.455, "highest_price_reached": 223.28, "reason": "Trailing Stop (1.12% profit)", "entry_reason": "Volume spike 2.5x average", "risk_reward_planned": 2.2315644103251357}, {"timestamp": "2025-10-02T05:45:53.778902", "symbol": "IOTAUSDC", "entry_price": 0.1764, "exit_price": 0.1805, "quantity": 283.0, "profit_loss": 1.0592972999999979, "total_realized_profit": 1.4966171999999935, "partial_exits": true, "tp1_exit_price": 0.1784, "original_quantity": 566.0, "highest_price_reached": 0.1812, "reason": "Trailing Stop (2.41% profit)", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 2.980378890392459}, {"timestamp": "2025-10-02T06:00:52.055893", "symbol": "PEPEUSDC", "entry_price": 9.82e-06, "exit_price": 9.95e-06, "quantity": 5091649.0, "profit_loss": 0.5612524692700023, "total_realized_profit": 1.3259673827700027, "partial_exits": true, "tp1_exit_price": 9.99e-06, "original_quantity": 10183299.0, "highest_price_reached": 1.001e-05, "reason": "Trailing Stop (1.43% profit)", "entry_reason": "Volume spike 3.4x average", "risk_reward_planned": 2.4835609509357597}, {"timestamp": "2025-10-02T06:00:57.714545", "symbol": "ENAUSDC", "entry_price": 0.5762, "exit_price": 0.5935, "quantity": 86.77, "profit_loss": 1.3996261309999984, "total_realized_profit": 1.9498200089999942, "partial_exits": true, "tp1_exit_price": 0.5837, "original_quantity": 173.55, "highest_price_reached": 0.5991, "reason": "Trailing Stop (3.66% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.547016441899099}, {"timestamp": "2025-10-02T06:45:50.302241", "symbol": "SHIBUSDC", "entry_price": 1.24e-05, "exit_price": 1.2529999999999999e-05, "quantity": 4032258.0, "profit_loss": 0.42366934805999495, "total_realized_profit": 0.8876209535399964, "partial_exits": true, "tp1_exit_price": 1.255e-05, "original_quantity": 8064516.0, "highest_price_reached": 1.261e-05, "reason": "Trailing Stop (1.19% profit)", "entry_reason": "Volume spike 3.4x average", "risk_reward_planned": 3.3750680457267217}, {"timestamp": "2025-10-02T10:15:36.768755", "symbol": "ETHUSDC", "entry_price": 4407.06, "exit_price": 4373.360000000001, "quantity": 0.0226, "profit_loss": -0.9600574919999959, "total_realized_profit": -0.9600574919999959, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0226, "highest_price_reached": 4407.06, "reason": "Stop Loss", "entry_reason": "Volume spike 4.4x average", "risk_reward_planned": 4.13687989470348}, {"timestamp": "2025-10-02T11:00:44.094121", "symbol": "PEPEUSDC", "entry_price": 1.015e-05, "exit_price": 1.003e-05, "quantity": 9852216.0, "profit_loss": -1.3810836388799888, "total_realized_profit": -1.3810836388799888, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 9852216.0, "highest_price_reached": 1.015e-05, "reason": "Stop Loss", "entry_reason": "Volume spike 3.2x average", "risk_reward_planned": 2.297419646899042}, {"timestamp": "2025-10-02T11:45:51.755350", "symbol": "LINKUSDC", "entry_price": 22.54, "exit_price": 22.529999999999998, "quantity": 2.22, "profit_loss": -0.12225540000000346, "total_realized_profit": 0.39629899999999896, "partial_exits": true, "tp1_exit_price": 22.83, "original_quantity": 4.43, "highest_price_reached": 22.83, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 3.089687328579221}, {"timestamp": "2025-10-02T12:30:43.961564", "symbol": "ADAUSDC", "entry_price": 0.8619, "exit_price": 0.8498, "quantity": 116.0, "profit_loss": -1.6021572, "total_realized_profit": -1.6021572, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 116.0, "highest_price_reached": 0.8619, "reason": "Stop Loss", "entry_reason": "Volume spike 3.2x average", "risk_reward_planned": 2.225120074368604}, {"timestamp": "2025-10-02T15:15:40.940261", "symbol": "BNBUSDC", "entry_price": 1028.55, "exit_price": 1055.6, "quantity": 0.048, "profit_loss": 1.198360799999998, "total_realized_profit": 1.742737080000001, "partial_exits": true, "tp1_exit_price": 1041.84, "original_quantity": 0.097, "highest_price_reached": 1061.64, "reason": "Trailing Stop (2.91% profit)", "entry_reason": "Volume spike 6.6x average", "risk_reward_planned": 2.2317925347221914}, {"timestamp": "2025-10-02T16:45:44.123693", "symbol": "DOGEUSDC", "entry_price": 0.25625, "exit_price": 0.25249, "quantity": 390.0, "profit_loss": -1.6648085999999944, "total_realized_profit": -1.6648085999999944, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 390.0, "highest_price_reached": 0.25625, "reason": "Stop Loss", "entry_reason": "Volume spike 4.4x average", "risk_reward_planned": 2.377642495220762}, {"timestamp": "2025-10-02T16:45:52.344225", "symbol": "LINKUSDC", "entry_price": 22.4, "exit_price": 22.19, "quantity": 4.46, "profit_loss": -1.135471399999988, "total_realized_profit": -1.135471399999988, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 4.46, "highest_price_reached": 22.4, "reason": "Stop Loss", "entry_reason": "Volume spike 2.9x average", "risk_reward_planned": 3.0823237885462498}, {"timestamp": "2025-10-02T17:00:38.014127", "symbol": "ETHUSDC", "entry_price": 4419.78, "exit_price": 4373.84, "quantity": 0.0226, "profit_loss": -1.2369798119999909, "total_realized_profit": -1.2369798119999909, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0226, "highest_price_reached": 4419.78, "reason": "Stop Loss", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 2.665463173843375}, {"timestamp": "2025-10-02T17:00:45.077421", "symbol": "XRPUSDC", "entry_price": 2.9871, "exit_price": 2.9549, "quantity": 33.4, "profit_loss": -1.2739428000000002, "total_realized_profit": -1.2739428000000002, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 33.4, "highest_price_reached": 2.9871, "reason": "Stop Loss", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 2.641971596837819}, {"timestamp": "2025-10-02T17:00:54.112303", "symbol": "XLMUSDC", "entry_price": 0.4017, "exit_price": 0.3963, "quantity": 248.0, "profit_loss": -1.537104000000004, "total_realized_profit": -1.537104000000004, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 248.0, "highest_price_reached": 0.4017, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.678404695211391}, {"timestamp": "2025-10-02T17:00:57.371045", "symbol": "IOTAUSDC", "entry_price": 0.1817, "exit_price": 0.17909999999999998, "quantity": 550.0, "profit_loss": -1.6284400000000103, "total_realized_profit": -1.6284400000000103, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 550.0, "highest_price_reached": 0.1817, "reason": "Stop Loss", "entry_reason": "Volume spike 2.9x average", "risk_reward_planned": 4.100361663652803}, {"timestamp": "2025-10-02T21:30:45.155090", "symbol": "SOLUSDC", "entry_price": 225.56, "exit_price": 232.34, "quantity": 0.221, "profit_loss": 1.3971841000000003, "total_realized_profit": 1.9978539399999995, "partial_exits": true, "tp1_exit_price": 228.72, "original_quantity": 0.443, "highest_price_reached": 233.53, "reason": "Trailing Stop (3.22% profit)", "entry_reason": "Volume spike 2.5x average", "risk_reward_planned": 2.081034705437365}, {"timestamp": "2025-10-03T04:00:52.806657", "symbol": "IOTAUSDC", "entry_price": 0.1836, "exit_price": 0.1814, "quantity": 544.0, "profit_loss": -1.3953600000000042, "total_realized_profit": -1.3953600000000042, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 544.0, "highest_price_reached": 0.1836, "reason": "Stop Loss", "entry_reason": "Volume spike 2.9x average", "risk_reward_planned": 2.1753016323633485}, {"timestamp": "2025-10-03T06:45:44.745754", "symbol": "SOLUSDC", "entry_price": 233.96, "exit_price": 231.85, "quantity": 0.427, "profit_loss": -1.099870870000006, "total_realized_profit": -1.099870870000006, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.427, "highest_price_reached": 233.96, "reason": "Stop Loss", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 3.1677363446800735}, {"timestamp": "2025-10-03T06:45:49.131236", "symbol": "LINKUSDC", "entry_price": 22.79, "exit_price": 22.57, "quantity": 4.38, "profit_loss": -1.162276799999995, "total_realized_profit": -1.162276799999995, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 4.38, "highest_price_reached": 22.79, "reason": "Stop Loss", "entry_reason": "Volume spike 2.9x average", "risk_reward_planned": 2.9431524547803476}, {"timestamp": "2025-10-03T07:45:40.716055", "symbol": "DOGEUSDC", "entry_price": 0.2583, "exit_price": 0.25737088082901555, "quantity": 193.0, "profit_loss": -0.2788444799999944, "total_realized_profit": 0.06281280000001721, "partial_exits": true, "tp1_exit_price": 0.26061, "original_quantity": 387.0, "highest_price_reached": 0.26073, "reason": "Trailing Stop (0.13% profit)", "entry_reason": "Bounce from swing_high support (strength: 3)", "risk_reward_planned": 2.1127734644269527}, {"timestamp": "2025-10-03T09:00:47.980246", "symbol": "XLMUSDC", "entry_price": 0.4043, "exit_price": 0.4003, "quantity": 247.0, "profit_loss": -1.1867362000000008, "total_realized_profit": -1.1867362000000008, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 247.0, "highest_price_reached": 0.4043, "reason": "Stop Loss", "entry_reason": "Volume spike 3.4x average", "risk_reward_planned": 2.7968447273733847}, {"timestamp": "2025-10-03T09:00:50.472820", "symbol": "IOTAUSDC", "entry_price": 0.182, "exit_price": 0.18460000000000001, "quantity": 275.0, "profit_loss": 0.6141850000000052, "total_realized_profit": 1.499862600000003, "partial_exits": true, "tp1_exit_price": 0.1856, "original_quantity": 549.0, "highest_price_reached": 0.1857, "reason": "Trailing Stop (1.73% profit)", "entry_reason": "Volume spike 9.3x average", "risk_reward_planned": 2.269892741331997}, {"timestamp": "2025-10-03T09:30:36.654564", "symbol": "ETHUSDC", "entry_price": 4502.15, "exit_price": 4460.54, "quantity": 0.0222, "profit_loss": -1.1227137179999929, "total_realized_profit": -1.1227137179999929, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0222, "highest_price_reached": 4502.15, "reason": "Stop Loss", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 2.8766077350184673}, {"timestamp": "2025-10-03T09:30:44.018175", "symbol": "PNUTUSDC", "entry_price": 0.2213, "exit_price": 0.2192, "quantity": 451.8, "profit_loss": -1.1477978999999958, "total_realized_profit": -1.1477978999999958, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 451.8, "highest_price_reached": 0.2213, "reason": "Stop Loss", "entry_reason": "Volume spike 3.4x average", "risk_reward_planned": 3.449189526184531}, {"timestamp": "2025-10-03T09:30:51.773795", "symbol": "ENAUSDC", "entry_price": 0.6126, "exit_price": 0.6071000000000001, "quantity": 163.23, "profit_loss": -1.0968566309999916, "total_realized_profit": -1.0968566309999916, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 163.23, "highest_price_reached": 0.6126, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 3.1864724803430766}, {"timestamp": "2025-10-03T15:15:47.154335", "symbol": "PNUTUSDC", "entry_price": 0.2207, "exit_price": 0.2181, "quantity": 453.1, "profit_loss": -1.3768802800000086, "total_realized_profit": -1.3768802800000086, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 453.1, "highest_price_reached": 0.2207, "reason": "Stop Loss", "entry_reason": "Volume spike 3.7x average", "risk_reward_planned": 2.2100941317844796}, {"timestamp": "2025-10-03T15:15:51.693578", "symbol": "XLMUSDC", "entry_price": 0.4043, "exit_price": 0.4003, "quantity": 247.0, "profit_loss": -1.1867362000000008, "total_realized_profit": -1.1867362000000008, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 247.0, "highest_price_reached": 0.4043, "reason": "Stop Loss", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 2.650839454354637}, {"timestamp": "2025-10-03T16:15:37.597867", "symbol": "ETHUSDC", "entry_price": 4486.37, "exit_price": 4450.49, "quantity": 0.0222, "profit_loss": -0.9949342920000025, "total_realized_profit": -0.9949342920000025, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0222, "highest_price_reached": 4486.37, "reason": "Stop Loss", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 3.5565329202611204}, {"timestamp": "2025-10-03T16:15:39.133913", "symbol": "BNBUSDC", "entry_price": 1133.32, "exit_price": 1121.99, "quantity": 0.088, "profit_loss": -1.1955072799999935, "total_realized_profit": -1.1955072799999935, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.088, "highest_price_reached": 1133.32, "reason": "Stop Loss", "entry_reason": "Volume spike 2.8x average", "risk_reward_planned": 3.126921824194182}, {"timestamp": "2025-10-03T19:00:35.354622", "symbol": "BTCUSDC", "entry_price": 119170.82, "exit_price": 122350.98, "quantity": 0.00041, "profit_loss": 1.2048416619999955, "total_realized_profit": 1.9011723417999886, "partial_exits": true, "tp1_exit_price": 121068.99, "original_quantity": 0.00083, "highest_price_reached": 123809.24, "reason": "Trailing Stop (3.58% profit)", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 3.713252740965328}, {"timestamp": "2025-10-03T19:00:40.960882", "symbol": "ADAUSDC", "entry_price": 0.855, "exit_price": 0.8722, "quantity": 58.5, "profit_loss": 0.9051587999999995, "total_realized_profit": 1.359540000000003, "partial_exits": true, "tp1_exit_price": 0.8646, "original_quantity": 116.89999999999999, "highest_price_reached": 0.8912, "reason": "Trailing Stop (3.92% profit)", "entry_reason": "Bounce from swing_low support (strength: 4)", "risk_reward_planned": 2.17693127210081}, {"timestamp": "2025-10-03T19:00:45.700741", "symbol": "DOGEUSDC", "entry_price": 0.25491, "exit_price": 0.25831, "quantity": 196.0, "profit_loss": 0.5658088799999919, "total_realized_profit": 0.9730165199999882, "partial_exits": true, "tp1_exit_price": 0.25759, "original_quantity": 392.0, "highest_price_reached": 0.26492, "reason": "Trailing Stop (3.62% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.2098872506504432}, {"timestamp": "2025-10-03T19:00:47.650167", "symbol": "SOLUSDC", "entry_price": 229.17, "exit_price": 232.01311926605504, "quantity": 0.218, "profit_loss": 0.5192620800000021, "total_realized_profit": 1.0269557400000004, "partial_exits": true, "tp1_exit_price": 231.97, "original_quantity": 0.436, "highest_price_reached": 236.66, "reason": "Trailing Stop (2.96% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.0060053225015535}, {"timestamp": "2025-10-03T19:00:50.867871", "symbol": "PEPEUSDC", "entry_price": 1.033e-05, "exit_price": 1.009e-05, "quantity": 9680542.0, "profit_loss": -2.521006747639994, "total_realized_profit": -2.521006747639994, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 9680542.0, "highest_price_reached": 1.033e-05, "reason": "Stop Loss", "entry_reason": "Volume spike 3.5x average", "risk_reward_planned": 2.3180592991913715}, {"timestamp": "2025-10-03T19:00:52.850299", "symbol": "SHIBUSDC", "entry_price": 1.263e-05, "exit_price": 1.256e-05, "quantity": 3958828.0, "profit_loss": -0.37684083731999735, "total_realized_profit": 0.43277907696000734, "partial_exits": true, "tp1_exit_price": 1.287e-05, "original_quantity": 7917656.0, "highest_price_reached": 1.287e-05, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 2.0668195217818566}, {"timestamp": "2025-10-03T19:00:54.059999", "symbol": "XLMUSDC", "entry_price": 0.4025, "exit_price": 0.4049, "quantity": 124.0, "profit_loss": 0.19748239999999473, "total_realized_profit": 0.7294299999999939, "partial_exits": true, "tp1_exit_price": 0.4077, "original_quantity": 248.0, "highest_price_reached": 0.4134, "reason": "Trailing Stop (2.40% profit)", "entry_reason": "Volume spike 2.9x average", "risk_reward_planned": 2.0544099632502952}, {"timestamp": "2025-10-03T19:00:55.085324", "symbol": "LINKUSDC", "entry_price": 22.61, "exit_price": 22.36, "quantity": 2.21, "profit_loss": -0.6518837, "total_realized_profit": -0.06740500000000282, "partial_exits": true, "tp1_exit_price": 22.92, "original_quantity": 4.42, "highest_price_reached": 23.06, "reason": "Trailing Stop (1.48% profit)", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 2.0030120481927702}, {"timestamp": "2025-10-03T19:00:56.995009", "symbol": "IOTAUSDC", "entry_price": 0.1848, "exit_price": 0.1871, "quantity": 271.0, "profit_loss": 0.5225150999999991, "total_realized_profit": 1.3128320999999985, "partial_exits": true, "tp1_exit_price": 0.1882, "original_quantity": 541.0, "highest_price_reached": 0.1912, "reason": "Trailing Stop (3.15% profit)", "entry_reason": "Volume spike 3.7x average", "risk_reward_planned": 2.1826333176026282}, {"timestamp": "2025-10-03T19:00:58.264238", "symbol": "ENAUSDC", "entry_price": 0.6138, "exit_price": 0.6094603977412227, "quantity": 81.46, "profit_loss": -0.45315079199999686, "total_realized_profit": 0.1059464429999939, "partial_exits": true, "tp1_exit_price": 0.6219, "original_quantity": 162.91, "highest_price_reached": 0.6338, "reason": "Trailing Stop (2.95% profit)", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 2.662836147592213}, {"timestamp": "2025-10-03T19:30:38.151615", "symbol": "ETHUSDC", "entry_price": 4551.17, "exit_price": 4498.93, "quantity": 0.0219, "profit_loss": -1.342253189999995, "total_realized_profit": -1.342253189999995, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0219, "highest_price_reached": 4551.17, "reason": "Stop Loss", "entry_reason": "Volume spike 3.3x average", "risk_reward_planned": 2.3504706973592535}, {"timestamp": "2025-10-03T21:45:53.204068", "symbol": "IOTAUSDC", "entry_price": 0.1901, "exit_price": 0.1886, "quantity": 526.0, "profit_loss": -0.9881962000000006, "total_realized_profit": -0.9881962000000006, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 526.0, "highest_price_reached": 0.1901, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.974030037546968}, {"timestamp": "2025-10-03T22:00:44.901632", "symbol": "DOGEUSDC", "entry_price": 0.25738, "exit_price": 0.25925, "quantity": 194.0, "profit_loss": 0.26255377999999663, "total_realized_profit": 0.664647879999993, "partial_exits": true, "tp1_exit_price": 0.26002, "original_quantity": 388.0, "highest_price_reached": 0.26111, "reason": "Trailing Stop (0.94% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.0745757245939074}, {"timestamp": "2025-10-04T01:15:55.765208", "symbol": "ENAUSDC", "entry_price": 0.6119, "exit_price": 0.6181, "quantity": 81.71, "profit_loss": 0.40609869999999854, "total_realized_profit": 0.9264770060000027, "partial_exits": true, "tp1_exit_price": 0.6197, "original_quantity": 163.42, "highest_price_reached": 0.6229, "reason": "Trailing Stop (1.29% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 2.104973515856133}, {"timestamp": "2025-10-04T02:45:49.544515", "symbol": "PNUTUSDC", "entry_price": 0.2253, "exit_price": 0.2231, "quantity": 443.7, "profit_loss": -1.1750950800000033, "total_realized_profit": -1.1750950800000033, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 443.70000000000005, "highest_price_reached": 0.2253, "reason": "Stop Loss", "entry_reason": "Bounce from swing_high support (strength: 3)", "risk_reward_planned": 2.024936868686841}, {"timestamp": "2025-10-04T03:15:46.085080", "symbol": "DOGEUSDC", "entry_price": 0.25907, "exit_price": 0.25667, "quantity": 385.0, "profit_loss": -1.122559900000005, "total_realized_profit": -1.122559900000005, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 385.0, "highest_price_reached": 0.25907, "reason": "Stop Loss", "entry_reason": "Volume spike 5.3x average", "risk_reward_planned": 2.9298023429373043}, {"timestamp": "2025-10-04T03:15:51.809472", "symbol": "SHIBUSDC", "entry_price": 1.267e-05, "exit_price": 1.257e-05, "quantity": 7892659.0, "profit_loss": -0.9884766131600059, "total_realized_profit": -0.9884766131600059, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 7892659.0, "highest_price_reached": 1.267e-05, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 3.8810545677497346}, {"timestamp": "2025-10-04T03:30:42.825868", "symbol": "BNBUSDC", "entry_price": 1182.42, "exit_price": 1170.71, "quantity": 0.084, "profit_loss": -1.1813029200000031, "total_realized_profit": -1.1813029200000031, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.084, "highest_price_reached": 1182.42, "reason": "Stop Loss", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 3.2493470790377925}, {"timestamp": "2025-10-04T03:45:58.036006", "symbol": "XLMUSDC", "entry_price": 0.4075, "exit_price": 0.404, "quantity": 245.0, "profit_loss": -1.0563174999999871, "total_realized_profit": -1.0563174999999871, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 245.0, "highest_price_reached": 0.4075, "reason": "Stop Loss", "entry_reason": "Volume spike 3.3x average", "risk_reward_planned": 3.1525607303109906}, {"timestamp": "2025-10-04T10:15:48.439502", "symbol": "PNUTUSDC", "entry_price": 0.2248, "exit_price": 0.22399999999999998, "quantity": 222.4, "profit_loss": -0.2777331200000051, "total_realized_profit": 0.13328431999999407, "partial_exits": true, "tp1_exit_price": 0.2272, "original_quantity": 444.79999999999995, "highest_price_reached": 0.2275, "reason": "Trailing Stop (0.70% profit)", "entry_reason": "Volume spike 13.4x average", "risk_reward_planned": 2.3230546357615847}, {"timestamp": "2025-10-04T10:45:50.291839", "symbol": "SHIBUSDC", "entry_price": 1.266e-05, "exit_price": 1.2519999999999999e-05, "quantity": 7898894.0, "profit_loss": -1.304739310920016, "total_realized_profit": -1.304739310920016, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 7898894.0, "highest_price_reached": 1.266e-05, "reason": "Stop Loss", "entry_reason": "Volume spike 4.1x average", "risk_reward_planned": 2.7986725663717027}, {"timestamp": "2025-10-04T10:45:53.967200", "symbol": "LINKUSDC", "entry_price": 22.16, "exit_price": 21.89, "quantity": 4.51, "profit_loss": -1.416365499999998, "total_realized_profit": -1.416365499999998, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 4.51, "highest_price_reached": 22.16, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 2.099127291960497}, {"timestamp": "2025-10-04T10:45:55.688690", "symbol": "IOTAUSDC", "entry_price": 0.1878, "exit_price": 0.18515394736842106, "quantity": 532.0, "profit_loss": -1.6061114999999948, "total_realized_profit": -1.6061114999999948, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 532.0, "highest_price_reached": 0.1878, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 3.399198167239413}, {"timestamp": "2025-10-04T10:45:58.064840", "symbol": "ENAUSDC", "entry_price": 0.6059, "exit_price": 0.6045, "quantity": 82.52, "profit_loss": -0.21541020799999644, "total_realized_profit": 0.6573543200000062, "partial_exits": true, "tp1_exit_price": 0.6174, "original_quantity": 165.04, "highest_price_reached": 0.6174, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Bounce from swing_low support (strength: 5)", "risk_reward_planned": 4.82189259419659}, {"timestamp": "2025-10-04T13:00:47.925433", "symbol": "DOGEUSDC", "entry_price": 0.2527, "exit_price": 0.24975999999999998, "quantity": 395.0, "profit_loss": -1.3597716999999994, "total_realized_profit": -1.3597716999999994, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 395.0, "highest_price_reached": 0.2527, "reason": "Stop Loss", "entry_reason": "Volume spike 4.0x average", "risk_reward_planned": 2.9670032879286077}, {"timestamp": "2025-10-04T17:00:44.148927", "symbol": "SOLUSDC", "entry_price": 230.18, "exit_price": 227.04999999999998, "quantity": 0.434, "profit_loss": -1.5568578200000105, "total_realized_profit": -1.5568578200000105, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.434, "highest_price_reached": 230.18, "reason": "Stop Loss", "entry_reason": "Volume spike 2.8x average", "risk_reward_planned": 2.7066723112020576}, {"timestamp": "2025-10-04T17:00:46.477956", "symbol": "PNUTUSDC", "entry_price": 0.2188, "exit_price": 0.2149711690017513, "quantity": 456.8, "profit_loss": -1.9471566699999987, "total_realized_profit": -1.9471566699999987, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 456.8, "highest_price_reached": 0.2188, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 5)", "risk_reward_planned": 3.3928098516949197}, {"timestamp": "2025-10-05T05:15:45.844238", "symbol": "DOGEUSDC", "entry_price": 0.24902, "exit_price": 0.25654223880597016, "quantity": 201.0, "profit_loss": 1.4103519900000034, "total_realized_profit": 2.5176558700000102, "partial_exits": true, "tp1_exit_price": 0.25522, "original_quantity": 401.0, "highest_price_reached": 0.25756, "reason": "Trailing Stop (3.12% profit)", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 3.1555221296789586}, {"timestamp": "2025-10-05T05:30:50.630304", "symbol": "IOTAUSDC", "entry_price": 0.1862, "exit_price": 0.1902, "quantity": 269.0, "profit_loss": 0.974748400000001, "total_realized_profit": 1.6245948000000001, "partial_exits": true, "tp1_exit_price": 0.189, "original_quantity": 537.0, "highest_price_reached": 0.191, "reason": "Trailing Stop (2.27% profit)", "entry_reason": "Volume spike 3.0x average", "risk_reward_planned": 2.0611702127659446}, {"timestamp": "2025-10-05T06:00:42.231171", "symbol": "ADAUSDC", "entry_price": 0.8432, "exit_price": 0.8557, "quantity": 59.3, "profit_loss": 0.6405052300000039, "total_realized_profit": 1.2207895500000012, "partial_exits": true, "tp1_exit_price": 0.8551, "original_quantity": 118.5, "highest_price_reached": 0.8607, "reason": "Trailing Stop (1.77% profit)", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 2.271787371394013}, {"timestamp": "2025-10-05T06:00:43.634212", "symbol": "XRPUSDC", "entry_price": 2.9448, "exit_price": 3.0113000000000003, "quantity": 17.0, "profit_loss": 1.0292463000000076, "total_realized_profit": 1.8363345300000165, "partial_exits": true, "tp1_exit_price": 2.9991, "original_quantity": 33.9, "highest_price_reached": 3.0252, "reason": "Trailing Stop (2.42% profit)", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 2.5099141705186434}, {"timestamp": "2025-10-05T06:15:55.287671", "symbol": "ENAUSDC", "entry_price": 0.5871, "exit_price": 0.6092000000000001, "quantity": 85.16, "profit_loss": 1.78015909200001, "total_realized_profit": 2.7435997200000157, "partial_exits": true, "tp1_exit_price": 0.5997, "original_quantity": 170.32, "highest_price_reached": 0.6136, "reason": "Trailing Stop (4.20% profit)", "entry_reason": "Volume spike 2.5x average", "risk_reward_planned": 2.418451400329423}, {"timestamp": "2025-10-05T09:30:37.767061", "symbol": "BTCUSDC", "entry_price": 121989.02, "exit_price": 124824.03, "quantity": 0.00041, "profit_loss": 1.0611607494999977, "total_realized_profit": 1.7563599494999886, "partial_exits": true, "tp1_exit_price": 123999.99, "original_quantity": 0.00081, "highest_price_reached": 125362.71, "reason": "Trailing Stop (2.46% profit)", "entry_reason": "Extreme oversold bounce (RSI: 9.9)", "risk_reward_planned": 2.051910062359326}, {"timestamp": "2025-10-05T10:15:53.174864", "symbol": "IOTAUSDC", "entry_price": 0.1897, "exit_price": 0.1939, "quantity": 263.0, "profit_loss": 1.003713199999995, "total_realized_profit": 1.5365179999999912, "partial_exits": true, "tp1_exit_price": 0.1923, "original_quantity": 527.0, "highest_price_reached": 0.1945, "reason": "Trailing Stop (2.22% profit)", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 2.068062827225139}, {"timestamp": "2025-10-05T10:45:47.781618", "symbol": "PEPEUSDC", "entry_price": 9.95e-06, "exit_price": 1.011e-05, "quantity": 5025125.0, "profit_loss": 0.7032159925000009, "total_realized_profit": 1.2558290987200031, "partial_exits": true, "tp1_exit_price": 1.009e-05, "original_quantity": 10050251.0, "highest_price_reached": 1.016e-05, "reason": "Trailing Stop (1.80% profit)", "entry_reason": "Volume spike 4.1x average", "risk_reward_planned": 2.5000000000000084}, {"timestamp": "2025-10-05T11:15:49.599396", "symbol": "XLMUSDC", "entry_price": 0.401, "exit_price": 0.4058112, "quantity": 125.0, "profit_loss": 0.500548599999995, "total_realized_profit": 1.0576433999999915, "partial_exits": true, "tp1_exit_price": 0.4064, "original_quantity": 249.0, "highest_price_reached": 0.4087, "reason": "Trailing Stop (1.41% profit)", "entry_reason": "Volume spike 5.1x average", "risk_reward_planned": 2.2253052164261913}, {"timestamp": "2025-10-05T11:30:56.001189", "symbol": "LINKUSDC", "entry_price": 22.42, "exit_price": 22.71, "quantity": 2.23, "profit_loss": 0.546060099999998, "total_realized_profit": 1.1812309999999941, "partial_exits": true, "tp1_exit_price": 22.75, "original_quantity": 4.46, "highest_price_reached": 22.87, "reason": "Trailing Stop (1.70% profit)", "entry_reason": "Volume spike 4.1x average", "risk_reward_planned": 3.2087628865979525}, {"timestamp": "2025-10-05T21:15:38.579162", "symbol": "ETHUSDC", "entry_price": 4553.67, "exit_price": 4500.09, "quantity": 0.0219, "profit_loss": -1.3716793439999984, "total_realized_profit": -1.3716793439999984, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0219, "highest_price_reached": 4553.67, "reason": "Stop Loss", "entry_reason": "Volume spike 5.2x average", "risk_reward_planned": 2.3784817981246125}, {"timestamp": "2025-10-06T03:00:53.403416", "symbol": "LINKUSDC", "entry_price": 21.97, "exit_price": 21.560000000000002, "quantity": 4.55, "profit_loss": -2.0635614999999845, "total_realized_profit": -2.0635614999999845, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 4.55, "highest_price_reached": 21.97, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 2.000365764447682}, {"timestamp": "2025-10-06T04:00:53.259816", "symbol": "XLMUSDC", "entry_price": 0.393, "exit_price": 0.4012, "quantity": 127.0, "profit_loss": 0.9405365999999981, "total_realized_profit": 1.8937604999999946, "partial_exits": true, "tp1_exit_price": 0.4015, "original_quantity": 254.0, "highest_price_reached": 0.4032, "reason": "Trailing Stop (2.29% profit)", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 2.481416549789627}, {"timestamp": "2025-10-06T07:00:58.425114", "symbol": "IOTAUSDC", "entry_price": 0.1905, "exit_price": 0.1876486641221374, "quantity": 524.0, "profit_loss": -1.6922499000000017, "total_realized_profit": -1.6922499000000017, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 524.0, "highest_price_reached": 0.1905, "reason": "Stop Loss", "entry_reason": "Volume spike 5.4x average", "risk_reward_planned": 2.069377990430613}, {"timestamp": "2025-10-06T11:45:45.250428", "symbol": "SOLUSDC", "entry_price": 230.65, "exit_price": 233.19, "quantity": 0.217, "profit_loss": 0.4505267199999982, "total_realized_profit": 1.0176584799999988, "partial_exits": true, "tp1_exit_price": 233.74, "original_quantity": 0.433, "highest_price_reached": 234.44, "reason": "Trailing Stop (1.13% profit)", "entry_reason": "Volume spike 3.7x average", "risk_reward_planned": 2.275364034568487}, {"timestamp": "2025-10-06T16:30:42.417837", "symbol": "PEPEUSDC", "entry_price": 9.91e-06, "exit_price": 1.015e-05, "quantity": 5045409.0, "profit_loss": 1.109687255459997, "total_realized_profit": 1.6649344058599909, "partial_exits": true, "tp1_exit_price": 1.005e-05, "original_quantity": 10090817.0, "highest_price_reached": 1.02e-05, "reason": "Trailing Stop (2.62% profit)", "entry_reason": "Volume spike 3.7x average", "risk_reward_planned": 2.083333333333331}, {"timestamp": "2025-10-06T17:00:36.016269", "symbol": "ETHUSDC", "entry_price": 4522.36, "exit_price": 4645.750000000001, "quantity": 0.011, "profit_loss": 1.2564407900000134, "total_realized_profit": 1.7766901310000163, "partial_exits": true, "tp1_exit_price": 4578.21, "original_quantity": 0.0221, "highest_price_reached": 4667.45, "reason": "Trailing Stop (2.90% profit)", "entry_reason": "Volume spike 2.5x average", "risk_reward_planned": 2.1199204599149155}, {"timestamp": "2025-10-06T17:00:38.468094", "symbol": "ADAUSDC", "entry_price": 0.8399, "exit_price": 0.8642, "quantity": 59.5, "profit_loss": 1.3444560499999991, "total_realized_profit": 2.308492900000001, "partial_exits": true, "tp1_exit_price": 0.8579, "original_quantity": 119.0, "highest_price_reached": 0.8678, "reason": "Trailing Stop (3.01% profit)", "entry_reason": "Bounce from swing_high support (strength: 3)", "risk_reward_planned": 3.441065643048279}, {"timestamp": "2025-10-06T17:00:47.600739", "symbol": "LINKUSDC", "entry_price": 21.93, "exit_price": 22.610000000000003, "quantity": 2.28, "profit_loss": 1.4488488000000073, "total_realized_profit": 2.0522829000000042, "partial_exits": true, "tp1_exit_price": 22.24, "original_quantity": 4.55, "highest_price_reached": 22.75, "reason": "Trailing Stop (3.43% profit)", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 2.070338311087631}, {"timestamp": "2025-10-06T18:15:48.949350", "symbol": "SHIBUSDC", "entry_price": 1.261e-05, "exit_price": 1.2879999999999999e-05, "quantity": 3965107.0, "profit_loss": 0.9695083125699964, "total_realized_profit": 1.6617366926299955, "partial_exits": true, "tp1_exit_price": 1.281e-05, "original_quantity": 7930214.0, "highest_price_reached": 1.294e-05, "reason": "Trailing Stop (2.31% profit)", "entry_reason": "Volume spike 4.3x average", "risk_reward_planned": 2.0231213872832443}, {"timestamp": "2025-10-06T19:45:34.673157", "symbol": "BTCUSDC", "entry_price": 123056.68, "exit_price": 125233.98000000001, "quantity": 0.00041, "profit_loss": 0.7908938294000072, "total_realized_profit": 1.3047650559000115, "partial_exits": true, "tp1_exit_price": 124550.99, "original_quantity": 0.00081, "highest_price_reached": 125795.99, "reason": "Trailing Stop (1.92% profit)", "entry_reason": "Volume spike 2.5x average", "risk_reward_planned": 2.1144193694715265}, {"timestamp": "2025-10-06T20:30:52.219936", "symbol": "ENAUSDC", "entry_price": 0.5902, "exit_price": 0.6025, "quantity": 84.71, "profit_loss": 0.9408993830000073, "total_realized_profit": 1.4079522710000107, "partial_exits": true, "tp1_exit_price": 0.597, "original_quantity": 169.43, "highest_price_reached": 0.6054, "reason": "Trailing Stop (2.27% profit)", "entry_reason": "Bounce from swing_high support (strength: 5)", "risk_reward_planned": 2.02747252747254}, {"timestamp": "2025-10-06T23:00:47.560668", "symbol": "SOLUSDC", "entry_price": 233.95, "exit_price": 233.81, "quantity": 0.214, "profit_loss": -0.1300606399999971, "total_realized_profit": 0.5809951300000034, "partial_exits": true, "tp1_exit_price": 237.72, "original_quantity": 0.427, "highest_price_reached": 237.72, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 2.1936536514009126}, {"timestamp": "2025-10-07T08:30:37.275452", "symbol": "BTCUSDC", "entry_price": 125796.99, "exit_price": 124005.84000000001, "quantity": 0.00079, "profit_loss": -1.6123527356999954, "total_realized_profit": -1.6123527356999954, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.00079, "highest_price_reached": 125796.99, "reason": "Stop Loss", "entry_reason": "Volume spike 3.7x average", "risk_reward_planned": 2.053908724586752}, {"timestamp": "2025-10-07T17:15:36.482104", "symbol": "BTCUSDC", "entry_price": 123921.11, "exit_price": 121999.98, "quantity": 0.0008, "profit_loss": -1.7336408720000038, "total_realized_profit": -1.7336408720000038, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0008, "highest_price_reached": 123921.11, "reason": "Stop Loss", "entry_reason": "Volume spike 2.7x average", "risk_reward_planned": 2.132277500764461}, {"timestamp": "2025-10-08T05:30:42.689379", "symbol": "ADAUSDC", "entry_price": 0.8302, "exit_price": 0.8164, "quantity": 120.4, "profit_loss": -1.8597706400000042, "total_realized_profit": -1.8597706400000042, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 120.4, "highest_price_reached": 0.8302, "reason": "Stop Loss", "entry_reason": "Volume spike 2.6x average", "risk_reward_planned": 2.078575721153866}, {"timestamp": "2025-10-08T05:30:49.791927", "symbol": "PNUTUSDC", "entry_price": 0.2111, "exit_price": 0.2083, "quantity": 473.7, "profit_loss": -1.5250297799999983, "total_realized_profit": -1.5250297799999983, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 473.7, "highest_price_reached": 0.2111, "reason": "Stop Loss", "entry_reason": "Volume spike 3.9x average", "risk_reward_planned": 2.0249520153550793}, {"timestamp": "2025-10-08T05:30:57.795951", "symbol": "IOTAUSDC", "entry_price": 0.1856, "exit_price": 0.1832842007434944, "quantity": 538.0, "profit_loss": -1.4443596999999988, "total_realized_profit": -1.4443596999999988, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 538.0, "highest_price_reached": 0.1856, "reason": "Stop Loss", "entry_reason": "Bounce from swing_high support (strength: 3)", "risk_reward_planned": 2.5410677618069766}, {"timestamp": "2025-10-08T15:45:34.115630", "symbol": "BTCUSDC", "entry_price": 121212.03, "exit_price": 121790.8, "quantity": 0.00041, "profit_loss": 0.13766453970000164, "total_realized_profit": 0.7288639905000067, "partial_exits": true, "tp1_exit_price": 122900.0, "original_quantity": 0.00082, "highest_price_reached": 123141.52, "reason": "Trailing Stop (1.08% profit)", "entry_reason": "Bounce from previous_day_low support (strength: 3)", "risk_reward_planned": 2.0212045188958476}, {"timestamp": "2025-10-08T19:45:40.402541", "symbol": "PEPEUSDC", "entry_price": 9.3e-06, "exit_price": 9.62e-06, "quantity": 5376344.0, "profit_loss": 1.6187096515199926, "total_realized_profit": 2.5391935077599825, "partial_exits": true, "tp1_exit_price": 9.5e-06, "original_quantity": 10752688.0, "highest_price_reached": 9.69e-06, "reason": "Trailing Stop (3.88% profit)", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 2.975386894962113}, {"timestamp": "2025-10-08T19:45:41.828428", "symbol": "SHIBUSDC", "entry_price": 1.216e-05, "exit_price": 1.2400000000000002e-05, "quantity": 4111842.0, "profit_loss": 0.8858552404800045, "total_realized_profit": 1.4430920683200053, "partial_exits": true, "tp1_exit_price": 1.233e-05, "original_quantity": 8223684.0, "highest_price_reached": 1.244e-05, "reason": "Trailing Stop (2.00% profit)", "entry_reason": "Volume spike 3.6x average", "risk_reward_planned": 2.1499292786421433}, {"timestamp": "2025-10-08T20:15:37.376957", "symbol": "DOGEUSDC", "entry_price": 0.24867, "exit_price": 0.25974, "quantity": 201.0, "profit_loss": 2.122879590000005, "total_realized_profit": 3.538946700000005, "partial_exits": true, "tp1_exit_price": 0.25624, "original_quantity": 402.0, "highest_price_reached": 0.26039, "reason": "Trailing Stop (4.40% profit)", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 4.965874732753916}, {"timestamp": "2025-10-08T21:15:49.953448", "symbol": "IOTAUSDC", "entry_price": 0.1857, "exit_price": 0.1879899628252788, "quantity": 269.0, "profit_loss": 0.5154773999999962, "total_realized_profit": 1.1326529999999977, "partial_exits": true, "tp1_exit_price": 0.1887, "original_quantity": 538.0, "highest_price_reached": 0.1894, "reason": "Trailing Stop (1.48% profit)", "entry_reason": "Bounce from swing_high support (strength: 3)", "risk_reward_planned": 2.844603089080441}, {"timestamp": "2025-10-09T06:19:55.392952", "symbol": "XRPUSDC", "entry_price": 2.8797, "exit_price": 2.8436, "quantity": 17.3, "profit_loss": -0.7235430900000043, "total_realized_profit": -0.08499615000000471, "partial_exits": true, "tp1_exit_price": 2.9205, "original_quantity": 34.7, "highest_price_reached": 2.9205, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Bounce from swing_high support (strength: 4)", "risk_reward_planned": 2.836646543952381}, {"timestamp": "2025-10-09T06:20:05.960929", "symbol": "XLMUSDC", "entry_price": 0.3853, "exit_price": 0.3825, "quantity": 129.0, "profit_loss": -0.46024619999999605, "total_realized_profit": 0.24476980000000903, "partial_exits": true, "tp1_exit_price": 0.3916, "original_quantity": 259.0, "highest_price_reached": 0.3916, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Volume spike 3.7x average", "risk_reward_planned": 2.3777475919980313}, {"timestamp": "2025-10-09T10:27:22.093222", "symbol": "ETHUSDC", "entry_price": 4464.46, "exit_price": 4360.45, "quantity": 0.0223, "profit_loss": -2.5162184930000047, "total_realized_profit": -2.5162184930000047, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0223, "highest_price_reached": 4464.46, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 4.398155484834725}, {"timestamp": "2025-10-09T10:30:32.930081", "symbol": "BTCUSDC", "entry_price": 122813.0, "exit_price": 121343.99, "quantity": 0.00081, "profit_loss": -1.3876652618999956, "total_realized_profit": -1.3876652618999956, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.00081, "highest_price_reached": 122813.0, "reason": "Stop Loss", "entry_reason": "Volume spike 4.7x average", "risk_reward_planned": 2.238239445214771}, {"timestamp": "2025-10-10T06:00:56.087807", "symbol": "ENAUSDC", "entry_price": 0.5524, "exit_price": 0.5651, "quantity": 90.51, "profit_loss": 1.048332075000004, "total_realized_profit": 2.033370507000005, "partial_exits": true, "tp1_exit_price": 0.5644, "original_quantity": 181.02, "highest_price_reached": 0.5687, "reason": "Trailing Stop (2.64% profit)", "entry_reason": "Bounce from swing_high support (strength: 3)", "risk_reward_planned": 2.3841241809991804}, {"timestamp": "2025-10-10T16:30:40.227220", "symbol": "PNUTUSDC", "entry_price": 0.2064, "exit_price": 0.20405631709331132, "quantity": 484.4, "profit_loss": -1.3341050399999976, "total_realized_profit": -1.3341050399999976, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 484.4, "highest_price_reached": 0.2064, "reason": "Stop Loss", "entry_reason": "Volume spike 4.2x average", "risk_reward_planned": 2.0975609756097287}, {"timestamp": "2025-10-10T17:00:36.736216", "symbol": "ETHUSDC", "entry_price": 4370.41, "exit_price": 4279.01, "quantity": 0.0228, "profit_loss": -2.281126775999992, "total_realized_profit": -2.281126775999992, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.0228, "highest_price_reached": 4370.41, "reason": "Stop Loss", "entry_reason": "Volume spike 4.2x average", "risk_reward_planned": 2.0653889483254653}, {"timestamp": "2025-10-10T17:00:38.031735", "symbol": "ADAUSDC", "entry_price": 0.8208, "exit_price": 0.8051999999999999, "quantity": 121.8, "profit_loss": -2.0981268000000073, "total_realized_profit": -2.0981268000000073, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 121.8, "highest_price_reached": 0.8208, "reason": "Stop Loss", "entry_reason": "Volume spike 4.7x average", "risk_reward_planned": 2.255139056831912}, {"timestamp": "2025-10-10T17:00:44.008460", "symbol": "PEPEUSDC", "entry_price": 9.35e-06, "exit_price": 9.12e-06, "quantity": 10695187.0, "profit_loss": -2.657433113889995, "total_realized_profit": -2.657433113889995, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 10695187.0, "highest_price_reached": 9.35e-06, "reason": "Stop Loss", "entry_reason": "Volume spike 6.1x average", "risk_reward_planned": 2.2604065827686335}, {"timestamp": "2025-10-10T17:00:47.401131", "symbol": "XLMUSDC", "entry_price": 0.3803, "exit_price": 0.3791152671755725, "quantity": 131.0, "profit_loss": -0.2546834000000088, "total_realized_profit": 0.2607622999999889, "partial_exits": true, "tp1_exit_price": 0.3851, "original_quantity": 262.0, "highest_price_reached": 0.3851, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Volume spike 4.9x average", "risk_reward_planned": 2.02535691455361}, {"timestamp": "2025-10-10T17:00:51.003654", "symbol": "IOTAUSDC", "entry_price": 0.1797, "exit_price": 0.1782, "quantity": 278.0, "profit_loss": -0.5164962000000004, "total_realized_profit": 0.38338979999999734, "partial_exits": true, "tp1_exit_price": 0.1839, "original_quantity": 556.0, "highest_price_reached": 0.1839, "reason": "Trailing Stop (0.00% profit)", "entry_reason": "Volume spike 6.0x average", "risk_reward_planned": 2.251256281407005}, {"timestamp": "2025-10-10T17:15:39.816148", "symbol": "BNBUSDC", "entry_price": 1258.28, "exit_price": 1234.35, "quantity": 0.079, "profit_loss": -2.0873877700000047, "total_realized_profit": -2.0873877700000047, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.079, "highest_price_reached": 1258.28, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 3.0145802869774005}, {"timestamp": "2025-10-10T20:19:21.293102", "symbol": "XRPUSDC", "entry_price": 2.829, "exit_price": 2.7175000000000002, "quantity": 35.3, "profit_loss": -4.131741449999997, "total_realized_profit": -4.131741449999997, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 35.3, "highest_price_reached": 2.829, "reason": "Stop Loss", "entry_reason": "Volume spike 3.6x average", "risk_reward_planned": 2.0081338897878998}, {"timestamp": "2025-10-11T04:48:03.113735", "symbol": "BTCUSDC", "entry_price": 117583.02, "exit_price": 113151.77647058824, "quantity": 0.00085, "profit_loss": -3.962681576999996, "total_realized_profit": -3.962681576999996, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.00085, "highest_price_reached": 117583.02, "reason": "Stop Loss", "entry_reason": "Bounce from previous_day_low support (strength: 3)", "risk_reward_planned": 2.1509045986649333}, {"timestamp": "2025-10-11T16:42:11.667780", "symbol": "SHIBUSDC", "entry_price": 1.033e-05, "exit_price": 1.0229999999999999e-05, "quantity": 9680542.0, "profit_loss": -1.167086143520007, "total_realized_profit": -1.167086143520007, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 9680542.0, "highest_price_reached": 1.033e-05, "reason": "Stop Loss", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 4.813432835820958}, {"timestamp": "2025-10-11T17:45:43.354907", "symbol": "PNUTUSDC", "entry_price": 0.1418, "exit_price": 0.1436, "quantity": 352.5, "profit_loss": 0.5338964999999987, "total_realized_profit": 1.2438667499999974, "partial_exits": true, "tp1_exit_price": 0.1437, "original_quantity": 705.0, "highest_price_reached": 0.1452, "reason": "Trailing Stop (2.09% profit)", "entry_reason": "Stop hunt recovery - whale accumulation", "risk_reward_planned": 4.442355889724241}, {"timestamp": "2025-10-11T21:00:43.826342", "symbol": "PEPEUSDC", "entry_price": 7.12e-06, "exit_price": 6.990000000000001e-06, "quantity": 14044943.0, "profit_loss": -2.0240167357299828, "total_realized_profit": -2.0240167357299828, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 14044943.0, "highest_price_reached": 7.12e-06, "reason": "Stop Loss", "entry_reason": "Bounce from swing_high support (strength: 4)", "risk_reward_planned": 16.402566539923917}, {"timestamp": "2025-10-11T23:00:38.156561", "symbol": "BTCUSDC", "entry_price": 112108.99, "exit_price": 110411.01, "quantity": 0.00089, "profit_loss": -1.7092450000000092, "total_realized_profit": -1.7092450000000092, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.00089, "highest_price_reached": 112108.99, "reason": "Stop Loss", "entry_reason": "Bounce from swing_low support (strength: 3)", "risk_reward_planned": 4.82805025518805}, {"timestamp": "2025-10-13T12:45:03.172362", "symbol": "SOLUSDC", "entry_price": 180.2, "exit_price": 195.59999999999997, "quantity": 0.277, "profit_loss": 4.161703399999994, "total_realized_profit": 8.256993279999993, "partial_exits": true, "tp1_exit_price": 195.32, "original_quantity": 0.554, "highest_price_reached": 196.97, "reason": "Trailing Stop (8.98% profit)", "entry_reason": "Volume spike 3.2x average", "risk_reward_planned": 2.049529053100991}, {"timestamp": "2025-10-13T13:15:41.856226", "symbol": "DOGEUSDC", "entry_price": 0.18713, "exit_price": 0.20815999999999998, "quantity": 267.0, "profit_loss": 5.509467569999998, "total_realized_profit": 10.781542770000003, "partial_exits": true, "tp1_exit_price": 0.20728, "original_quantity": 534.0, "highest_price_reached": 0.20998, "reason": "Trailing Stop (11.87% profit)", "entry_reason": "Bounce from swing_high support (strength: 3)", "risk_reward_planned": 3.195882296480144}, {"timestamp": "2025-10-14T09:45:32.509655", "symbol": "BTCUSDC", "entry_price": 114562.33, "exit_price": 111636.99, "quantity": 0.00087, "profit_loss": -2.741839208399997, "total_realized_profit": -2.741839208399997, "partial_exits": false, "tp1_exit_price": null, "original_quantity": 0.00087, "highest_price_reached": 114562.33, "reason": "Stop Loss", "entry_reason": "Volume spike 2.5x average", "risk_reward_planned": 2.1175529287449577}];
+        let currentFilter = 'all';
+        
+        function filterTrades(type) {
+            currentFilter = type;
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            let filteredTrades = allTrades;
+            
+            if (type === 'wins') {
+                filteredTrades = allTrades.filter(t => t.profit_loss > 0);
+            } else if (type === 'losses') {
+                filteredTrades = allTrades.filter(t => t.profit_loss <= 0);
+            }
+            
+            updateTable(filteredTrades);
+        }
+        
+        function sortTable(column) {
+            let filteredTrades = allTrades;
+            
+            if (currentFilter === 'wins') {
+                filteredTrades = allTrades.filter(t => t.profit_loss > 0);
+            } else if (currentFilter === 'losses') {
+                filteredTrades = allTrades.filter(t => t.profit_loss <= 0);
+            }
+            
+            filteredTrades.sort((a, b) => {
+                if (column === 'timestamp') {
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                } else if (column === 'profit_loss') {
+                    return b.profit_loss - a.profit_loss;
+                } else if (column === 'symbol') {
+                    return a.symbol.localeCompare(b.symbol);
+                }
+            });
+            
+            updateTable(filteredTrades);
+        }
+        
+        function updateTable(trades) {
+            const tbody = document.getElementById('tradesTableBody');
+            tbody.innerHTML = trades.map(trade => {
+                const profit_pct = ((trade.exit_price - trade.entry_price) / trade.entry_price * 100).toFixed(2);
+                const pnlClass = trade.profit_loss > 0 ? 'positive' : 'negative';
+                
+                return `
+                    <tr>
+                        <td>${trade.timestamp.replace('T', ' ').substring(0, 19)}</td>
+                        <td>${trade.symbol}</td>
+                        <td>${trade.entry_price.toFixed(6)}</td>
+                        <td>${trade.exit_price.toFixed(6)}</td>
+                        <td>${trade.quantity.toFixed(2)}</td>
+                        <td class="${pnlClass}">${trade.profit_loss > 0 ? '+' : ''}${trade.profit_loss.toFixed(2)}</td>
+                        <td class="${pnlClass}">${profit_pct}%</td>
+                        <td>${trade.entry_reason || '-'}</td>
+                        <td>${trade.reason || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>

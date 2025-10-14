@@ -7,6 +7,11 @@ status_*
 orders
 outputs
 .claude
+backtest*
+anlayze*
+quick_backtest*
+statu*
+
 
 # Python virtual environments
 venv/

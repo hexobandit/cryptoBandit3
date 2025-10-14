@@ -598,7 +598,7 @@ class ProfessionalTrader:
                 if analysis_price > breakout_threshold and trend_line.slope > 0:
                     # Find stop loss below trend line (use current position)
                     current_line_price = trend_line.get_price_at_time(df['timestamp'].iloc[-1])
-                    stop_loss = current_line_price * 0.995  # 0.5% below line
+                    stop_loss = current_line_price * 0.99  # 1.0% below line
                     
                     # Find resistance for take profit
                     resistance_levels = [level for level in key_levels if level.level_type == "resistance" and level.price > current_price]
@@ -627,7 +627,7 @@ class ProfessionalTrader:
             if proximity < LEVEL_PROXIMITY_PERCENT / 100:  # Previous candle was near key level
                 if level.level_type == "support" and market_structure.trend in ["uptrend", "ranging"]:
                     # Long from support
-                    stop_loss = level.price * 0.992  # 0.8% below support
+                    stop_loss = level.price * 0.988  # 1.2% below support
                     
                     # Find next resistance
                     resistance_levels = [l for l in key_levels if l.level_type == "resistance" and l.price > current_price]
@@ -658,7 +658,7 @@ class ProfessionalTrader:
             # Extreme oversold condition on PREVIOUS candle
             if prev_rsi < 25 and analysis_price > df['low'].iloc[-3] * 0.998:
                 # Price stopped falling (not making significant new lows)
-                stop_loss = df['low'].iloc[-2] * 0.992  # 0.8% below previous candle low
+                stop_loss = df['low'].iloc[-2] * 0.985  # 1.5% below previous candle low
                 
                 # Conservative target for oversold bounces
                 take_profit = current_price * 1.018  # 1.8% target
@@ -686,7 +686,7 @@ class ProfessionalTrader:
             if prev_volume > avg_volume * 2.5:  # 2.5x average volume
                 if analysis_price > df['open'].iloc[-2]:  # Green candle
                     # Big players entered - follow them
-                    stop_loss = df['low'].iloc[-2] * 0.995  # Below the volume candle
+                    stop_loss = df['low'].iloc[-2] * 0.99  # 1.0% below the volume candle
                     take_profit = current_price * 1.025  # 2.5% target for momentum
                     risk_reward = (take_profit - current_price) / (current_price - stop_loss)
                     
@@ -717,7 +717,7 @@ class ProfessionalTrader:
                     body_size = abs(prev_candle_close - prev_candle_open)
                     
                     if wick_size > body_size * 2:  # Long lower wick (2x body)
-                        stop_loss = prev_candle_low * 0.998  # Below the hunt low
+                        stop_loss = prev_candle_low * 0.992  # 0.8% below the hunt low
                         take_profit = current_price * 1.02  # 2% target
                         risk_reward = (take_profit - current_price) / (current_price - stop_loss)
                         
