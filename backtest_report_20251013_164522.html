@@ -1,0 +1,303 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Professional Trader Backtest Report</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 10px; }
+        .summary { background: white; padding: 20px; margin: 20px 0; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .timeframe-section { background: white; padding: 20px; margin: 20px 0; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .metric { padding: 15px; background: #f8f9fa; border-radius: 5px; }
+        .metric-value { font-size: 24px; font-weight: bold; }
+        .metric-label { color: #666; font-size: 12px; margin-top: 5px; }
+        .positive { color: #27ae60; }
+        .negative { color: #e74c3c; }
+        .chart { height: 400px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #34495e; color: white; }
+        .best { background: #d4edda; }
+        .worst { background: #f8d7da; }
+        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Professional Trader Backtest Report</h1>
+        <p>180 Days Historical Analysis | Multiple Timeframes & Strategies</p>
+        <p>Generated: 2025-10-13 16:45:22</p>
+    </div>
+
+    <div class="summary">
+        <h2>📊 Overall Summary</h2>
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value negative">
+                    1H
+                </div>
+                <div class="metric-label">BEST TIMEFRAME</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value negative">
+                    $0.00
+                </div>
+                <div class="metric-label">BEST TOTAL P&L</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">
+                    0.0%
+                </div>
+                <div class="metric-label">BEST WIN RATE</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">
+                    0.00
+                </div>
+                <div class="metric-label">BEST PROFIT FACTOR</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="summary">
+        <h2>📈 Timeframe Comparison</h2>
+        <div id="timeframeChart"></div>
+        <script>
+            var trace1 = {
+                x: ['15m', '30m', '1h', '4h'],
+                y: [np.float64(-30.690925245642354), np.float64(-2.6640096447694486), 0, 0],
+                name: 'Total P&L ($)',
+                type: 'bar',
+                marker: { color: 'rgb(52, 152, 219)' }
+            };
+            
+            var trace2 = {
+                x: ['15m', '30m', '1h', '4h'],
+                y: [42.10526315789473, 50.0, 0, 0],
+                name: 'Win Rate (%)',
+                type: 'bar',
+                yaxis: 'y2',
+                marker: { color: 'rgb(46, 204, 113)' }
+            };
+            
+            var layout = {
+                title: 'Performance by Timeframe',
+                yaxis: { title: 'P&L ($)' },
+                yaxis2: {
+                    title: 'Win Rate (%)',
+                    overlaying: 'y',
+                    side: 'right'
+                }
+            };
+            
+            Plotly.newPlot('timeframeChart', [trace1, trace2], layout);
+        </script>
+    </div>
+
+    <div class="timeframe-section">
+        <h2>⏰ 15M Timeframe Results</h2>
+        
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value">57</div>
+                <div class="metric-label">TOTAL TRADES</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">42.1%</div>
+                <div class="metric-label">WIN RATE</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value negative">$-30.69</div>
+                <div class="metric-label">TOTAL P&L</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">32.8%</div>
+                <div class="metric-label">MAX DRAWDOWN</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">-10.69</div>
+                <div class="metric-label">SHARPE RATIO</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.22</div>
+                <div class="metric-label">PROFIT FACTOR</div>
+            </div>
+        </div>
+        
+        <h3>Strategy Breakdown</h3>
+        <table>
+            <tr>
+                <th>Strategy</th>
+                <th>Trades</th>
+                <th>Wins</th>
+                <th>Win Rate</th>
+                <th>Total P&L</th>
+            </tr>
+
+            <tr>
+                <td>RSI Oversold</td>
+                <td>57</td>
+                <td>24</td>
+                <td>42.1%</td>
+                <td class="negative">$-30.69</td>
+            </tr>
+
+        </table>
+    </div>
+
+    <div class="timeframe-section">
+        <h2>⏰ 30M Timeframe Results</h2>
+        
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value">6</div>
+                <div class="metric-label">TOTAL TRADES</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">50.0%</div>
+                <div class="metric-label">WIN RATE</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value negative">$-2.66</div>
+                <div class="metric-label">TOTAL P&L</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">3.6%</div>
+                <div class="metric-label">MAX DRAWDOWN</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">-9.33</div>
+                <div class="metric-label">SHARPE RATIO</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.26</div>
+                <div class="metric-label">PROFIT FACTOR</div>
+            </div>
+        </div>
+        
+        <h3>Strategy Breakdown</h3>
+        <table>
+            <tr>
+                <th>Strategy</th>
+                <th>Trades</th>
+                <th>Wins</th>
+                <th>Win Rate</th>
+                <th>Total P&L</th>
+            </tr>
+
+            <tr>
+                <td>RSI Oversold</td>
+                <td>6</td>
+                <td>3</td>
+                <td>50.0%</td>
+                <td class="negative">$-2.66</td>
+            </tr>
+
+        </table>
+    </div>
+
+    <div class="timeframe-section">
+        <h2>⏰ 1H Timeframe Results</h2>
+        
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value">0</div>
+                <div class="metric-label">TOTAL TRADES</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.0%</div>
+                <div class="metric-label">WIN RATE</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value negative">$0.00</div>
+                <div class="metric-label">TOTAL P&L</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.0%</div>
+                <div class="metric-label">MAX DRAWDOWN</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.00</div>
+                <div class="metric-label">SHARPE RATIO</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.00</div>
+                <div class="metric-label">PROFIT FACTOR</div>
+            </div>
+        </div>
+        
+        <h3>Strategy Breakdown</h3>
+        <table>
+            <tr>
+                <th>Strategy</th>
+                <th>Trades</th>
+                <th>Wins</th>
+                <th>Win Rate</th>
+                <th>Total P&L</th>
+            </tr>
+
+        </table>
+    </div>
+
+    <div class="timeframe-section">
+        <h2>⏰ 4H Timeframe Results</h2>
+        
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value">0</div>
+                <div class="metric-label">TOTAL TRADES</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.0%</div>
+                <div class="metric-label">WIN RATE</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value negative">$0.00</div>
+                <div class="metric-label">TOTAL P&L</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.0%</div>
+                <div class="metric-label">MAX DRAWDOWN</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.00</div>
+                <div class="metric-label">SHARPE RATIO</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">0.00</div>
+                <div class="metric-label">PROFIT FACTOR</div>
+            </div>
+        </div>
+        
+        <h3>Strategy Breakdown</h3>
+        <table>
+            <tr>
+                <th>Strategy</th>
+                <th>Trades</th>
+                <th>Wins</th>
+                <th>Win Rate</th>
+                <th>Total P&L</th>
+            </tr>
+
+        </table>
+    </div>
+
+    <div class="summary">
+        <h2>🎯 Strategy Performance Summary</h2>
+        <table>
+            <tr>
+                <th>Strategy</th>
+<th>15M</th><th>30M</th><th>1H</th><th>4H</th><th>Total P&L</th></tr><tr><td><strong>RSI Oversold</strong></td><td class='negative'>$-30.69</td><td class='negative'>$-2.66</td><td>-</td><td>-</td><td class='negative'><strong>$-33.35</strong></td></tr>
+        </table>
+    </div>
+    
+    <div class="summary">
+        <h2>📋 Recommendations</h2>
+        <ul>
+<li>🎯 <strong>RSI Oversold</strong> is the most profitable strategy with $-2.66 total P&L</li><li>🛡️ Low maximum drawdown of 0.0% shows good risk management</li>
+        </ul>
+    </div>
+</body>
+</html>
